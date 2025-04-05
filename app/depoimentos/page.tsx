@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Star, Quote, ThumbsUp, MessageSquare } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Depoimentos | PáscInterativa",
+  title: "Depoimentos | PascoaYou",
   description: "Veja o que nossos clientes estão dizendo sobre os cartões de Páscoa interativos.",
 }
 
@@ -19,7 +19,6 @@ export default function DepoimentosPage() {
     { id: "todos", label: "Todos" },
     { id: "recentes", label: "Mais Recentes" },
     { id: "populares", label: "Mais Populares" },
-    { id: "empresas", label: "Empresas" },
   ]
 
   const testimonials = [
@@ -30,7 +29,7 @@ export default function DepoimentosPage() {
       location: "São Paulo, SP",
       date: "28/03/2025",
       content:
-        "Criei cartões para toda minha família! As crianças adoraram a interatividade e os adultos ficaram impressionados com a qualidade. Vale cada centavo! Já estou planejando usar para outras datas comemorativas também.",
+        "Adorei a simplicidade! Consegui criar um cartão lindo para minha família em menos de 5 minutos. As crianças ficaram encantadas com a interatividade e os adultos impressionados com a qualidade.",
       rating: 5,
       likes: 42,
       replies: 3,
@@ -45,7 +44,7 @@ export default function DepoimentosPage() {
       location: "Rio de Janeiro, RJ",
       date: "25/03/2025",
       content:
-        "Como profissional da área, fiquei impressionado com as opções de personalização. Consegui criar algo único que realmente representou meu estilo. A interface é intuitiva e as animações são suaves. Recomendo para quem busca algo diferente do convencional.",
+        "Mesmo sendo designer, apreciei a praticidade do PascoaYou. Os templates são bem feitos e as opções de personalização são suficientes para criar algo único. A interface é intuitiva e as animações são suaves.",
       rating: 5,
       likes: 38,
       replies: 2,
@@ -60,7 +59,7 @@ export default function DepoimentosPage() {
       location: "Belo Horizonte, MG",
       date: "20/03/2025",
       content:
-        "Super fácil de usar! Fiz um cartão para minha avó que mora longe e ela ficou emocionada com a surpresa interativa. Vou usar para todas as datas comemorativas! O preço é justo pelo resultado final.",
+        "Fiz um cartão para minha avó que mora longe e ela ficou emocionada! A interface é super intuitiva e o resultado final ficou muito profissional. O preço é justo pelo resultado final.",
       rating: 4,
       likes: 27,
       replies: 1,
@@ -75,13 +74,13 @@ export default function DepoimentosPage() {
       location: "Curitiba, PR",
       date: "15/03/2025",
       content:
-        "Utilizei o serviço para enviar cartões personalizados para meus clientes VIP. O feedback foi excelente! Muitos comentaram sobre a originalidade e o cuidado que tivemos. Certamente isso fortaleceu nosso relacionamento comercial.",
+        "Utilizei o serviço para enviar cartões personalizados para meus clientes. O feedback foi excelente! Muitos comentaram sobre a originalidade e o cuidado que tivemos. Certamente isso fortaleceu nosso relacionamento comercial.",
       rating: 5,
       likes: 56,
       replies: 4,
       template: "Caça aos Ovos",
       avatar: "/placeholder.svg?height=80&width=80",
-      category: "empresas",
+      category: "populares",
     },
     {
       id: 5,
@@ -100,21 +99,6 @@ export default function DepoimentosPage() {
     },
     {
       id: 6,
-      name: "Supermercados BomPreço",
-      role: "Empresa",
-      location: "Recife, PE",
-      date: "05/03/2025",
-      content:
-        "Enviamos cartões interativos para nossa base de clientes e tivemos um retorno incrível! A taxa de engajamento foi muito superior às campanhas tradicionais. Já estamos planejando ações para outras datas comemorativas.",
-      rating: 5,
-      likes: 48,
-      replies: 2,
-      template: "Cesta de Páscoa",
-      avatar: "/placeholder.svg?height=80&width=80",
-      category: "empresas",
-    },
-    {
-      id: 7,
       name: "Lucas Ferreira",
       role: "Fotógrafo",
       location: "Brasília, DF",
@@ -124,39 +108,9 @@ export default function DepoimentosPage() {
       rating: 4,
       likes: 31,
       replies: 3,
-      template: "Chocolate Derretido",
+      template: "Cesta de Páscoa",
       avatar: "/placeholder.svg?height=80&width=80",
       category: "recentes",
-    },
-    {
-      id: 8,
-      name: "Juliana Martins",
-      role: "Médica",
-      location: "Fortaleza, CE",
-      date: "25/02/2025",
-      content:
-        "Enviei cartões para meus pacientes mais antigos e recebi mensagens de agradecimento muito emocionantes. É incrível como um gesto aparentemente simples pode fazer tanta diferença na vida das pessoas.",
-      rating: 5,
-      likes: 45,
-      replies: 5,
-      template: "Jardim de Páscoa",
-      avatar: "/placeholder.svg?height=80&width=80",
-      category: "populares",
-    },
-    {
-      id: 9,
-      name: "Escola Criativa",
-      role: "Instituição de Ensino",
-      location: "Porto Alegre, RS",
-      date: "20/02/2025",
-      content:
-        "Utilizamos os cartões como parte de um projeto pedagógico sobre datas comemorativas. Os alunos aprenderam sobre a Páscoa enquanto desenvolviam habilidades digitais. Uma experiência completa de aprendizado!",
-      rating: 5,
-      likes: 52,
-      replies: 6,
-      template: "Caça aos Ovos",
-      avatar: "/placeholder.svg?height=80&width=80",
-      category: "empresas",
     },
   ]
 
@@ -182,11 +136,11 @@ export default function DepoimentosPage() {
                       <Star key={star} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
-                  <span className="font-medium">4.9/5</span>
+                  <span className="font-medium">4.8/5</span>
                 </div>
                 <div className="h-6 w-px bg-purple-400"></div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">12,500+</span>
+                  <span className="font-medium">15,000+</span>
                   <span>Cartões Enviados</span>
                 </div>
                 <div className="h-6 w-px bg-purple-400"></div>
@@ -336,10 +290,6 @@ export default function DepoimentosPage() {
                     </CardFooter>
                   </Card>
                 ))}
-              </div>
-
-              <div className="mt-10 flex justify-center">
-                <Button className="bg-purple-600 text-white hover:bg-purple-700">Carregar Mais Depoimentos</Button>
               </div>
             </div>
           </div>
