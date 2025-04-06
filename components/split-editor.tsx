@@ -7,6 +7,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Maximize, Minimize, RotateCw, RefreshCw, Move, Contrast, SunMedium } from "lucide-react"
+import CardPreview from "@/components/card-preview"
 
 interface ImageState {
   x: number
@@ -166,47 +167,15 @@ export default function SplitEditor({
       {/* Preview do cartão final (lado esquerdo) */}
       <div className="w-full md:w-1/2 bg-white rounded-lg shadow-md p-4">
         <h3 className="text-lg font-medium mb-4 text-center">Seu cartão está pronto!</h3>
-        <div className="relative h-[400px] w-full max-w-[300px] mx-auto overflow-hidden rounded-lg shadow-md">
-          {/* Template de fundo */}
-          <div className="absolute inset-0">
-            <Image
-              src={templateUrl || `/placeholder.svg?height=600&width=400&text=Template+${templateId}`}
-              alt={`Template ${templateId}`}
-              fill
-              className="object-cover"
-            />
-          </div>
 
-          {/* Imagem do usuário posicionada conforme os ajustes */}
-          {imageUrl && (
-            <div
-              className="absolute"
-              style={{
-                left: `${state.x}px`,
-                top: `${state.y}px`,
-                width: `${state.width}px`,
-                height: `${state.height}px`,
-                transform: `rotate(${state.rotation}deg)`,
-                opacity: state.opacity,
-                filter: filterStyle,
-                pointerEvents: "none",
-              }}
-            >
-              <Image
-                src={imageUrl || "/placeholder.svg"}
-                alt="Imagem do usuário"
-                fill
-                style={{ objectFit: "contain" }}
-              />
-            </div>
-          )}
-
-          {/* Mensagem personalizada */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/80">
-            <p className="text-center italic">{mensagem}</p>
-            {nome && <p className="text-center font-medium mt-1">Para: {nome}</p>}
-          </div>
-        </div>
+        <CardPreview
+          templateId={templateId}
+          templateUrl={templateUrl}
+          imageUrl={imageUrl}
+          mensagem={mensagem}
+          nome={nome}
+          imageState={state}
+        />
 
         <div className="mt-6 p-4 bg-pink-50 rounded-lg">
           <h4 className="font-medium mb-2">Detalhes do pagamento:</h4>

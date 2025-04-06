@@ -27,6 +27,14 @@ const SplitEditor = dynamic(() => import("@/components/split-editor"), {
   ),
 })
 
+// Importar o componente CardPreview dinamicamente
+const CardPreview = dynamic(() => import("@/components/card-preview"), {
+  ssr: false,
+  loading: () => (
+    <div className="relative h-[400px] w-full max-w-[300px] mx-auto bg-gray-100 rounded-lg animate-pulse"></div>
+  ),
+})
+
 interface Template {
   id: number
   nome: string
@@ -626,14 +634,15 @@ export default function EditorPage() {
 
               {generatedCard ? (
                 <div className="flex flex-col items-center">
-                  <div className="relative h-[400px] w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg mb-6">
-                    <Image
-                      src={generatedCard || "/placeholder.svg"}
-                      alt="Cartão gerado"
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
+                  <CardPreview
+                    templateId={selectedTemplate || 1}
+                    templateUrl={selectedTemplateUrl}
+                    imageUrl={fotoUrl}
+                    mensagem={mensagem}
+                    nome={nome}
+                    imageState={imageState}
+                    className="mb-6"
+                  />
 
                   <div className="space-y-4 w-full max-w-md">
                     <div className="bg-pink-50 p-4 rounded-lg mb-6">

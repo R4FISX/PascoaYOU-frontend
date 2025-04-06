@@ -6,6 +6,14 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Loader2, Check, Download, Share2 } from "lucide-react"
+import dynamic from "next/dynamic"
+
+const CardPreview = dynamic(() => import("@/components/card-preview"), {
+  ssr: false,
+  loading: () => (
+    <div className="relative h-[400px] w-full max-w-[300px] mx-auto bg-gray-100 rounded-lg animate-pulse"></div>
+  ),
+})
 
 export default function SuccessPage() {
   const searchParams = useSearchParams()
@@ -17,6 +25,10 @@ export default function SuccessPage() {
   const [cardDetails, setCardDetails] = useState<{
     mensagem: string
     nome?: string
+    templateId?: number
+    templateUrl?: string
+    fotoUrl?: string
+    imageState?: any
   } | null>(null)
 
   useEffect(() => {
@@ -49,6 +61,10 @@ export default function SuccessPage() {
           setCardDetails({
             mensagem: data.mensagem,
             nome: data.nome,
+            templateId: data.templateId,
+            templateUrl: data.templateUrl,
+            fotoUrl: data.fotoUrl,
+            imageState: data.imageState,
           })
         } else {
           setError(`Erro ao gerar cartão: ${data.error}`)
@@ -111,14 +127,20 @@ export default function SuccessPage() {
               </div>
             ) : (
               <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="relative h-[400px] w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg">
-                  <Image
-                    src={cardUrl || "/placeholder.svg?height=600&width=400&text=Cartão+Gerado"}
-                    alt="Cartão gerado"
-                    fill
-                    className="object-contain"
+                {cardUrl ? (
+                  <div className="relative h-[400px] w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg">
+                    <Image src={cardUrl || "/placeholder.svg"} alt="Cartão gerado" fill className="object-contain" />
+                  </div>
+                ) : (
+                  <CardPreview
+                    templateId={cardDetails?.templateId || 1}
+                    templateUrl={cardDetails?.templateUrl || ""}
+                    imageUrl={cardDetails?.fotoUrl || ""}
+                    mensagem={cardDetails?.mensagem || ""}
+                    nome={cardDetails?.nome}
+                    imageState={cardDetails?.imageState}
                   />
-                </div>
+                )}
 
                 <div className="flex-1 space-y-6">
                   <div className="bg-pink-50 p-4 rounded-lg">
@@ -160,4 +182,3 @@ export default function SuccessPage() {
     </div>
   )
 }
-

@@ -87,11 +87,15 @@ export async function POST(request: NextRequest) {
       success: true,
       cardUrl,
       previewUrl: "/placeholder.svg?height=600&width=400&text=Cartão+Gerado",
-      mensagem: isPreview ? "Preview gerado com sucesso!" : "Cartão gerado com sucesso!",
+      mensagem,
+      nome: nome || null,
+      templateId,
+      templateUrl: `/placeholder.svg?height=600&width=400&text=Template+${templateId}`,
+      fotoUrl: fotoUrl || null,
+      imageState: imageState || null,
     })
   } catch (error) {
     console.error("Erro ao gerar cartão:", error)
     return NextResponse.json({ success: false, error: "Falha ao gerar o cartão" }, { status: 500 })
   }
 }
-
