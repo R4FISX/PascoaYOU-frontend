@@ -11,7 +11,7 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Inicializa o Stripe com a chave secreta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot", {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-03-31.basil",
 })
 
 export async function POST(request: NextRequest) {
