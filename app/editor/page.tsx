@@ -16,12 +16,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import dynamic from "next/dynamic"
 import UploadProgress from "@/components/upload-progress"
 
-// Importar o componente SimpleImageEditor dinamicamente para evitar erros de SSR
-const SimpleImageEditor = dynamic(() => import("@/components/simple-image-editor"), {
+// Importar o componente SplitEditor dinamicamente para evitar erros de SSR
+const SplitEditor = dynamic(() => import("@/components/split-editor"), {
   ssr: false,
   loading: () => (
-    <div className="flex justify-center items-center h-[400px] bg-gray-100 border rounded-lg">
-      <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+    <div className="flex flex-col md:flex-row gap-6 h-[600px] animate-pulse">
+      <div className="w-full md:w-1/2 bg-gray-100 rounded-lg"></div>
+      <div className="w-full md:w-1/2 bg-gray-100 rounded-lg"></div>
     </div>
   ),
 })
@@ -55,6 +56,7 @@ export default function EditorPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null)
+  const [selectedTemplateUrl, setSelectedTemplateUrl] = useState<string>("")
   const [mensagem, setMensagem] = useState("")
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
@@ -79,7 +81,6 @@ export default function EditorPage() {
     brightness: 100,
     contrast: 100,
   })
-  const [showImageEditor, setShowImageEditor] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   // Carregar dados salvos do localStorage
@@ -97,7 +98,6 @@ export default function EditorPage() {
         if (data.selectedTemplate) setSelectedTemplate(data.selectedTemplate)
         if (data.fotoUrl) {
           setFotoUrl(data.fotoUrl)
-          setShowImageEditor(true)
         }
       } catch (error) {
         console.error("Erro ao carregar dados salvos:", error)
@@ -127,6 +127,20 @@ export default function EditorPage() {
     fetchTemplates()
   }, [])
 
+  // Atualizar a URL do template selecionado
+  useEffect(() => {
+    if (selectedTemplate && templates.length > 0) {
+      const template = templates.find((t) => t.id === selectedTemplate)
+      if (template) {
+        setSelectedTemplateUrl(
+          template.previewUrl !== ""
+            ? template.previewUrl
+            : `/placeholder.svg?height=400&width=300&text=${template.nome}`,
+        )
+      }
+    }
+  }, [selectedTemplate, templates])
+
   // Salvar dados do formulário no localStorage
   useEffect(() => {
     if (!isMounted) return
@@ -148,13 +162,6 @@ export default function EditorPage() {
       setError("O pagamento foi cancelado. Você pode tentar novamente quando estiver pronto.")
     }
   }, [canceled])
-
-  // Efeito para mostrar o editor de imagem quando uma imagem for carregada
-  useEffect(() => {
-    if (fotoUrl) {
-      setShowImageEditor(true)
-    }
-  }, [fotoUrl])
 
   const handleTemplateSelect = (id: number) => {
     setSelectedTemplate(id)
@@ -410,12 +417,6 @@ export default function EditorPage() {
     setImageState(newState)
   }
 
-  const handleResetImage = () => {
-    setFotoUrl("")
-    setShowImageEditor(false)
-    setUploadStatus("idle")
-  }
-
   return (
     <div className="min-h-screen bg-pink-50">
       <header className="bg-white border-b">
@@ -438,7 +439,7 @@ export default function EditorPage() {
           </Alert>
         )}
 
-        <Tabs defaultValue="template" value={activeTab} onValueChange={setActiveTab} className="max-w-4xl mx-auto">
+        <Tabs defaultValue="template" value={activeTab} onValueChange={setActiveTab} className="max-w-6xl mx-auto">
           <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="template">1. Escolha o Template</TabsTrigger>
             <TabsTrigger value="personalize">2. Personalize</TabsTrigger>
@@ -565,7 +566,7 @@ export default function EditorPage() {
                         disabled={uploading}
                       />
                     </Button>
-                    {fotoUrl && !showImageEditor && (
+                    {fotoUrl && (
                       <div className="relative h-16 w-16 overflow-hidden rounded-md">
                         <Image src={fotoUrl || "/placeholder.svg"} alt="Foto enviada" fill className="object-cover" />
                       </div>
@@ -579,19 +580,20 @@ export default function EditorPage() {
                   </p>
                 </div>
 
-                {/* Editor de Imagem Simplificado */}
-                {isMounted && showImageEditor && fotoUrl && (
-                  <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+                {/* Editor de imagem dividido (apenas se tiver foto e template) */}
+                {isMounted && fotoUrl && selectedTemplate && (
+                  <div className="mt-6 border-t pt-6">
                     <h3 className="text-lg font-medium mb-4">Editar Imagem</h3>
 
-                    {isMounted && (
-                      <SimpleImageEditor
-                        imageUrl={fotoUrl}
-                        initialState={imageState}
-                        onChange={handleImageChange}
-                        onReset={handleResetImage}
-                      />
-                    )}
+                    <SplitEditor
+                      templateId={selectedTemplate}
+                      templateUrl={selectedTemplateUrl}
+                      imageUrl={fotoUrl}
+                      mensagem={mensagem}
+                      nome={nome}
+                      initialState={imageState}
+                      onChange={handleImageChange}
+                    />
                   </div>
                 )}
               </div>
@@ -689,4 +691,3 @@ export default function EditorPage() {
     </div>
   )
 }
-
