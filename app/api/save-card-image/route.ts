@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar se o bucket existe
     const { data: buckets } = await supabase.storage.listBuckets()
-    const bucketName = buckets?.some((bucket) => bucket.name === "easter-cards") ? "easter-cards" : "default-bucket"
+    const bucketName = buckets?.some((bucket) => bucket.name === "pascoayou") ? "pascoayou" : "default-bucket"
 
     // Upload da imagem para o Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage.from(bucketName).upload(fileName, buffer, {

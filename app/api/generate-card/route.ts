@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       // URL real do cartão gerado em produção seria obtida do Supabase
       cardUrl =
-        process.env.NODE_ENV === "production" ? `${process.env.SUPABASE_STORAGE_URL}/easter-cards/${cardPath}` : cardUrl
+        process.env.NODE_ENV === "production" ? `${process.env.SUPABASE_STORAGE_URL}/pascoayou/${cardPath}` : cardUrl
     }
 
     return NextResponse.json({

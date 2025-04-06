@@ -10,8 +10,8 @@ export default function Home() {
       <header className="sticky top-0 z-40 w-full border-b bg-white">
         <div className="container flex h-16 items-center justify-between py-4">
           <div className="flex items-center gap-2">
-            <Image src="/images/easter-logo.svg" alt="Easter Cards Logo" width={40} height={40} />
-            <span className="text-xl font-bold text-pink-500">Easter Cards</span>
+            <Image src="/images/easter-logo.svg" alt="Pascoayoou Logo" width={40} height={40} />
+            <span className="text-xl font-bold text-pink-500">Pascoayoou</span>
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-pink-500">
@@ -343,8 +343,8 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Image src="/images/easter-logo-white.svg" alt="Easter Cards Logo" width={40} height={40} />
-                <span className="text-xl font-bold">Easter Cards</span>
+                <Image src="/images/easter-logo-white.svg" alt="Pascoayoou Logo" width={40} height={40} />
+                <span className="text-xl font-bold">Pascoayoou</span>
               </div>
               <p className="text-white/70">
                 Crie cartões de Páscoa personalizados para compartilhar com quem você ama.
@@ -422,7 +422,7 @@ export default function Home() {
           </div>
 
           <div className="border-t border-white/20 mt-8 pt-8 text-center text-white/50 text-sm">
-            &copy; {new Date().getFullYear()} Easter Cards. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} Pascoayoou. Todos os direitos reservados.
           </div>
         </div>
       </footer>

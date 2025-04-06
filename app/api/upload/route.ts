@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar se o bucket existe, se não, usar um caminho padrão
     const { data: buckets } = await supabase.storage.listBuckets()
-    const bucketName = buckets?.some((bucket) => bucket.name === "easter-cards") ? "easter-cards" : "default-bucket"
+    const bucketName = buckets?.some((bucket) => bucket.name === "pascoayou") ? "pascoayou" : "default-bucket"
 
     // Upload para o Supabase Storage
     const { data, error } = await supabase.storage.from(bucketName).upload(filePath, fileBuffer, {
@@ -100,7 +100,7 @@ export async function GET() {
 
     // Verificar se o bucket existe
     const { data: buckets } = await supabase.storage.listBuckets()
-    const bucketName = buckets?.some((bucket) => bucket.name === "easter-cards") ? "easter-cards" : "default-bucket"
+    const bucketName = buckets?.some((bucket) => bucket.name === "pascoayou") ? "pascoayou" : "default-bucket"
 
     // Gerar um nome de arquivo único
     const fileName = `uploads/${Date.now()}-direct-upload.jpg`
