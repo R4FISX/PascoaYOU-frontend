@@ -21,7 +21,6 @@ export const metadata = {
       },
     ],
   },
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -40,6 +39,3 @@ export default function RootLayout({
   )
 }
 
-
-
-import './globals.css'
