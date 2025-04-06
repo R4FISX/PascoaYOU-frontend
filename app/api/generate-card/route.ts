@@ -17,21 +17,50 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { templateId, mensagem, nome, fotoUrl, imageState, sessionId, isPreview } = body
+    let { templateId, mensagem, nome, fotoUrl, imageState, sessionId, isPreview } = body
 
-    // Validação básica
-    if (!templateId || !mensagem) {
-      return NextResponse.json({ success: false, error: "Template e mensagem são obrigatórios" }, { status: 400 })
+    // Se não for preview e tiver sessionId, buscar os dados da sessão do Stripe
+    if (!isPreview && sessionId) {
+      try {
+        // Verificar se o pagamento foi concluído
+        const session = await stripe.checkout.sessions.retrieve(sessionId)
+
+        if (session.payment_status !== "paid") {
+          return NextResponse.json({ success: false, error: "Pagamento não confirmado" }, { status: 400 })
+        }
+        
+        // Extrair dados dos metadados da sessão do Stripe, se disponíveis
+        if (session.metadata) {
+          // Usar os dados do Stripe, ou manter os dados do request se existirem
+          templateId = templateId || session.metadata.templateId
+          mensagem = mensagem || session.metadata.mensagem
+          nome = nome || session.metadata.nome || null
+          fotoUrl = fotoUrl || session.metadata.fotoUrl || null
+          
+          // Para imageState, que é um objeto, precisamos fazer parse se for string
+          const stripeImageState = session.metadata.imageState ? 
+            (typeof session.metadata.imageState === 'string' ? 
+              JSON.parse(session.metadata.imageState) : session.metadata.imageState) : null
+          
+          imageState = imageState || stripeImageState
+        } else {
+          console.log("A sessão não possui metadados. SessionId:", sessionId)
+        }
+      } catch (error) {
+        console.error("Erro ao recuperar informações da sessão do Stripe:", error)
+        return NextResponse.json({ 
+          success: false, 
+          error: "Erro ao recuperar informações da sessão de pagamento" 
+        }, { status: 500 })
+      }
     }
 
-    // Se não for preview, verificar o pagamento
-    if (!isPreview && sessionId) {
-      // Verificar se o pagamento foi concluído
-      const session = await stripe.checkout.sessions.retrieve(sessionId)
-
-      if (session.payment_status !== "paid") {
-        return NextResponse.json({ success: false, error: "Pagamento não confirmado" }, { status: 400 })
-      }
+    // Validação básica após tentar recuperar dados do Stripe
+    if (!templateId || !mensagem) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Template e mensagem são obrigatórios. Não foi possível obter esses dados da sessão ou da requisição." 
+      }, { status: 400 })
     }
 
     // Simulação do processamento de geração do cartão

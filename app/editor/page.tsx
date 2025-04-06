@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -35,6 +35,14 @@ const CardPreview = dynamic(() => import("@/components/card-preview"), {
   ),
 })
 
+// Importar o componente CardGenerator dinamicamente
+const CardGenerator = dynamic(() => import("@/components/card-generator"), {
+  ssr: false,
+  loading: () => (
+    <div className="relative h-[400px] w-full max-w-[300px] mx-auto bg-gray-100 rounded-lg animate-pulse"></div>
+  ),
+})
+
 interface Template {
   id: number
   nome: string
@@ -60,6 +68,7 @@ export default function EditorPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const canceled = searchParams.get("canceled")
+  const cardGeneratorRef = useRef<HTMLDivElement>(null)
 
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,6 +85,7 @@ export default function EditorPage() {
   const [generating, setGenerating] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [generatedCard, setGeneratedCard] = useState<string | null>(null)
+  const [generatedCardDataUrl, setGeneratedCardDataUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("template")
   const [error, setError] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
@@ -293,6 +303,10 @@ export default function EditorPage() {
     }
   }
 
+  const handleCardGenerated = (dataUrl: string) => {
+    setGeneratedCardDataUrl(dataUrl)
+  }
+
   const handlePreviewCard = async () => {
     if (!selectedTemplate) {
       setError("Por favor, selecione um template")
@@ -308,7 +322,20 @@ export default function EditorPage() {
       setPreviewing(true)
       setError(null)
 
-      // Enviar dados para a API de geração de cartão em modo preview
+      // Gerar a imagem do cartão usando o CardGenerator
+      if (cardGeneratorRef.current && cardGeneratorRef.current.generateImage) {
+        // @ts-ignore - Chamando a função exposta pelo CardGenerator
+        const imageDataUrl = await cardGeneratorRef.current.generateImage()
+
+        if (imageDataUrl) {
+          setGeneratedCardDataUrl(imageDataUrl)
+          setActiveTab("preview")
+          setPreviewing(false)
+          return
+        }
+      }
+
+      // Fallback para a API se a geração local falhar
       const response = await fetch("/api/generate-card", {
         method: "POST",
         headers: {
@@ -371,6 +398,43 @@ export default function EditorPage() {
       setCheckoutLoading(true)
       setError(null)
 
+      // Garantir que temos a imagem do cartão gerada
+      if (!generatedCardDataUrl && cardGeneratorRef.current && cardGeneratorRef.current.generateImage) {
+        // @ts-ignore - Chamando a função exposta pelo CardGenerator
+        const imageDataUrl = await cardGeneratorRef.current.generateImage()
+        if (imageDataUrl) {
+          setGeneratedCardDataUrl(imageDataUrl)
+        }
+      }
+
+      // Salvar a imagem do cartão no servidor antes de iniciar o checkout
+      const saveResponse = await fetch("/api/save-card-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageDataUrl: generatedCardDataUrl,
+          templateId: selectedTemplate,
+          mensagem,
+          nome,
+          fotoUrl,
+          imageState: fotoUrl ? imageState : null,
+        }),
+      })
+
+      if (!saveResponse.ok) {
+        throw new Error(`Erro ao salvar imagem: ${saveResponse.status} ${saveResponse.statusText}`)
+      }
+
+      const saveData = await saveResponse.json()
+
+      if (!saveData.success) {
+        throw new Error(`Erro ao salvar imagem do cartão: ${saveData.error}`)
+      }
+
+      const cardId = saveData.cardId
+
       // Criar sessão de checkout
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
@@ -384,6 +448,7 @@ export default function EditorPage() {
           nome,
           fotoUrl,
           imageState: fotoUrl ? imageState : null,
+          cardId: cardId, // Passar o ID do cartão salvo
         }),
       })
 
@@ -632,17 +697,43 @@ export default function EditorPage() {
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-xl font-semibold mb-4">Seu cartão está pronto!</h2>
 
-              {generatedCard ? (
+              {generatedCardDataUrl || generatedCard ? (
                 <div className="flex flex-col items-center">
-                  <CardPreview
-                    templateId={selectedTemplate || 1}
-                    templateUrl={selectedTemplateUrl}
-                    imageUrl={fotoUrl}
-                    mensagem={mensagem}
-                    nome={nome}
-                    imageState={imageState}
-                    className="mb-6"
-                  />
+                  {/* Componente oculto para gerar a imagem final */}
+                  <div className="hidden">
+                    <CardGenerator
+                      ref={cardGeneratorRef}
+                      templateId={selectedTemplate || 1}
+                      templateUrl={selectedTemplateUrl}
+                      imageUrl={fotoUrl}
+                      mensagem={mensagem}
+                      nome={nome}
+                      imageState={imageState}
+                      onGenerate={handleCardGenerated}
+                    />
+                  </div>
+
+                  {/* Exibir a imagem gerada */}
+                  {generatedCardDataUrl ? (
+                    <div className="relative h-[400px] w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg mb-6">
+                      <Image
+                        src={generatedCardDataUrl || "/placeholder.svg"}
+                        alt="Cartão gerado"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <CardPreview
+                      templateId={selectedTemplate || 1}
+                      templateUrl={selectedTemplateUrl}
+                      imageUrl={fotoUrl}
+                      mensagem={mensagem}
+                      nome={nome}
+                      imageState={imageState}
+                      className="mb-6"
+                    />
+                  )}
 
                   <div className="space-y-4 w-full max-w-md">
                     <div className="bg-pink-50 p-4 rounded-lg mb-6">
