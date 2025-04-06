@@ -54,3 +54,4 @@ export default function UploadProgress({ progress, status, message }: UploadProg
     </div>
   )
 }
+

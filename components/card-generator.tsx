@@ -27,11 +27,12 @@ export default function CardGenerator({
 }: CardGeneratorProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
-  // Função para gerar a imagem do cartão usando html2canvas
+  // Gerar a imagem do cartão quando solicitado
   const generateCardImage = async () => {
     if (!cardRef.current) return null
 
     try {
+      // Usar html2canvas para capturar o elemento como uma imagem
       const canvas = await html2canvas(cardRef.current, {
         useCORS: true, // Importante para imagens de outros domínios
         scale: 2, // Melhor qualidade
@@ -39,6 +40,7 @@ export default function CardGenerator({
         logging: false,
       })
 
+      // Converter o canvas para uma URL de dados (base64)
       const imageDataUrl = canvas.toDataURL("image/png")
       onGenerate(imageDataUrl)
       return imageDataUrl
@@ -48,12 +50,10 @@ export default function CardGenerator({
     }
   }
 
-  // Expor a função de geração para o componente pai, se cardRef.current existir
+  // Expor a função de geração para o componente pai
   useEffect(() => {
-    if (cardRef.current) {
-      // @ts-ignore: Extendendo cardRef.current para incluir a propriedade generateImage
-      cardRef.current.generateImage = generateCardImage
-    }
+    // @ts-ignore - Adicionando a função ao elemento para acesso externo
+    cardRef.current?.generateImage = generateCardImage
   }, [templateId, templateUrl, imageUrl, mensagem, nome, imageState])
 
   return (
@@ -72,3 +72,4 @@ export default function CardGenerator({
     </div>
   )
 }
+

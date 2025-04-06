@@ -5,62 +5,33 @@ import Stripe from "stripe"
 // bibliotecas como 'canvas' ou 'sharp' para manipulação de imagens
 
 // Inicializa o cliente do Supabase
-const supabaseUrl = process.env.SUPABASE_URL || "https://uthophxqgveapbjvvzqd.supabase.co"
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQxODE3OSwiZXhwIjoyMDU4OTk0MTc5fQ.266I-yb0IoT-NOob4ob1CtwaXNcxFwnRfifRBtUPzXE"
+const supabaseUrl = process.env.SUPABASE_URL || ""
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Inicializa o Stripe com a chave secreta
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot", {
-  apiVersion: "2025-03-31.basil",
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2023-10-16",
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    let { templateId, mensagem, nome, fotoUrl, imageState, sessionId, isPreview } = body
+    const { templateId, mensagem, nome, fotoUrl, imageState, sessionId, isPreview } = body
 
-    // Se não for preview e tiver sessionId, buscar os dados da sessão do Stripe
-    if (!isPreview && sessionId) {
-      try {
-        // Verificar se o pagamento foi concluído
-        const session = await stripe.checkout.sessions.retrieve(sessionId)
-
-        if (session.payment_status !== "paid") {
-          return NextResponse.json({ success: false, error: "Pagamento não confirmado" }, { status: 400 })
-        }
-        
-        // Extrair dados dos metadados da sessão do Stripe, se disponíveis
-        if (session.metadata) {
-          // Usar os dados do Stripe, ou manter os dados do request se existirem
-          templateId = templateId || session.metadata.templateId
-          mensagem = mensagem || session.metadata.mensagem
-          nome = nome || session.metadata.nome || null
-          fotoUrl = fotoUrl || session.metadata.fotoUrl || null
-          
-          // Para imageState, que é um objeto, precisamos fazer parse se for string
-          const stripeImageState = session.metadata.imageState ? 
-            (typeof session.metadata.imageState === 'string' ? 
-              JSON.parse(session.metadata.imageState) : session.metadata.imageState) : null
-          
-          imageState = imageState || stripeImageState
-        } else {
-          console.log("A sessão não possui metadados. SessionId:", sessionId)
-        }
-      } catch (error) {
-        console.error("Erro ao recuperar informações da sessão do Stripe:", error)
-        return NextResponse.json({ 
-          success: false, 
-          error: "Erro ao recuperar informações da sessão de pagamento" 
-        }, { status: 500 })
-      }
+    // Validação básica
+    if (!templateId || !mensagem) {
+      return NextResponse.json({ success: false, error: "Template e mensagem são obrigatórios" }, { status: 400 })
     }
 
-    // Validação básica após tentar recuperar dados do Stripe
-    if (!templateId || !mensagem) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Template e mensagem são obrigatórios. Não foi possível obter esses dados da sessão ou da requisição." 
-      }, { status: 400 })
+    // Se não for preview, verificar o pagamento
+    if (!isPreview && sessionId) {
+      // Verificar se o pagamento foi concluído
+      const session = await stripe.checkout.sessions.retrieve(sessionId)
+
+      if (session.payment_status !== "paid") {
+        return NextResponse.json({ success: false, error: "Pagamento não confirmado" }, { status: 400 })
+      }
     }
 
     // Simulação do processamento de geração do cartão
@@ -109,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       // URL real do cartão gerado em produção seria obtida do Supabase
       cardUrl =
-        process.env.NODE_ENV === "production" ? `${process.env.SUPABASE_STORAGE_URL}/pascoayou/${cardPath}` : cardUrl
+        process.env.NODE_ENV === "production" ? `${process.env.SUPABASE_STORAGE_URL}/easter-cards/${cardPath}` : cardUrl
     }
 
     return NextResponse.json({
@@ -128,3 +99,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Falha ao gerar o cartão" }, { status: 500 })
   }
 }
+
