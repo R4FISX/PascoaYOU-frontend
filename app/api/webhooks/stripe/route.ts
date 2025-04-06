@@ -15,7 +15,7 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 // Webhook para receber eventos do Stripe
 export async function POST(request: NextRequest) {
   const payload = await request.text()
-  const sig = request.headers.get("stripe-signature") || ""
+  const sig = request.headers.get("stripe-signature") || "whsec_26e9c89eaad3c54cc0a4278d1c1c772e35d347ab7fbfbfe03dfc9b062194f3c3"
 
   let event
 

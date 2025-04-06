@@ -1,102 +1,85 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
-// Nota: Em um ambiente real, você precisaria instalar e importar
-// bibliotecas como 'canvas' ou 'sharp' para manipulação de imagens
-
-// Inicializa o cliente do Supabase
-const supabaseUrl = process.env.SUPABASE_URL || "https://uthophxqgveapbjvvzqd.supabase.co"
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQxODE3OSwiZXhwIjoyMDU4OTk0MTc5fQ.266I-yb0IoT-NOob4ob1CtwaXNcxFwnRfifRBtUPzXE"
-const supabase = createClient(supabaseUrl, supabaseKey)
+import { createClient } from "@supabase/supabase-js"
 
 // Inicializa o Stripe com a chave secreta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot", {
   apiVersion: "2023-10-16",
 })
 
+// Inicializa o cliente do Supabase
+const supabaseUrl = process.env.SUPABASE_URL || "https://uthophxqgveapbjvvzqd.supabase.co"
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQxODE3OSwiZXhwIjoyMDU4OTk0MTc5fQ.266I-yb0IoT-NOob4ob1CtwaXNcxFwnRfifRBtUPzXE"
+const supabase = createClient(supabaseUrl, supabaseKey)
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { templateId, mensagem, nome, fotoUrl, imageState, sessionId, isPreview } = body
+    const { email, templateId, mensagem, nome, fotoUrl, imageState, cardId } = body
 
     // Validação básica
-    if (!templateId || !mensagem) {
-      return NextResponse.json({ success: false, error: "Template e mensagem são obrigatórios" }, { status: 400 })
+    if (!email) {
+      return NextResponse.json({ success: false, error: "Email é obrigatório" }, { status: 400 })
     }
 
-    // Se não for preview, verificar o pagamento
-    if (!isPreview && sessionId) {
-      // Verificar se o pagamento foi concluído
-      const session = await stripe.checkout.sessions.retrieve(sessionId)
-
-      if (session.payment_status !== "paid") {
-        return NextResponse.json({ success: false, error: "Pagamento não confirmado" }, { status: 400 })
-      }
+    if (!cardId) {
+      return NextResponse.json({ success: false, error: "ID do cartão é obrigatório" }, { status: 400 })
     }
 
-    // Simulação do processamento de geração do cartão
-    // Em um ambiente real, aqui você usaria bibliotecas como 'canvas' ou 'sharp'
-    // para combinar o template com a mensagem, nome e foto do usuário
-    // Incluindo o posicionamento da imagem conforme definido em imageState
-
-    // Simula um tempo de processamento
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Gerar um nome único para o cartão
-    const cardFileName = `card-${templateId}-${Date.now()}.jpg`
-    const cardPath = `generated/${cardFileName}`
-
-    // Em um ambiente real, aqui você geraria a imagem do cartão
-    // e faria o upload para o Supabase Storage
-    // Usando o imageState para posicionar a imagem corretamente no template
-
-    // URL simulada do cartão gerado para ambiente de desenvolvimento
-    let cardUrl = `/generated-cards/${cardFileName}`
-
-    // Se não for preview e o ambiente for de produção, salvar no Supabase
-    if (!isPreview) {
-      // Aqui você salvaria a imagem gerada no Supabase Storage
-      // Este é um exemplo simplificado, em produção você teria o buffer da imagem gerada
-
-      // Exemplo de registro no banco de dados (opcional)
-      const { data: cardData, error: cardError } = await supabase
-        .from("cards")
-        .insert([
-          {
-            template_id: templateId,
-            mensagem,
-            nome: nome || null,
-            foto_url: fotoUrl || null,
-            image_state: imageState || null,
-            card_path: cardPath,
-            session_id: sessionId || null,
+    // Criar uma sessão de checkout no Stripe
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "brl",
+            product_data: {
+              name: "Cartão de Páscoa Personalizado",
+              description: "Acesso à criação de cartões de Páscoa personalizados",
+              images: ["https://example.com/easter-card-preview.jpg"], // Substitua por uma imagem real
+            },
+            unit_amount: 499, // R$ 4,99 em centavos
           },
-        ])
-        .select()
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${process.env.DOMAIN || "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}&card_id=${cardId}`,
+      cancel_url: `${process.env.DOMAIN || "http://localhost:3000"}/editor?canceled=true`,
+      customer_email: email,
+      metadata: {
+        cardId,
+        templateId: templateId.toString(),
+        mensagem,
+        nome: nome || "",
+        fotoUrl: fotoUrl || "",
+        imageState: imageState ? JSON.stringify(imageState) : "",
+      },
+    })
 
-      if (cardError) {
-        console.error("Erro ao salvar dados do cartão:", cardError)
-      }
+    // Atualizar o registro do cartão com o ID da sessão do Stripe
+    const { error: updateError } = await supabase
+      .from("cards")
+      .update({
+        session_id: session.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", cardId)
 
-      // URL real do cartão gerado em produção seria obtida do Supabase
-      cardUrl =
-        process.env.NODE_ENV === "production" ? `${process.env.SUPABASE_STORAGE_URL}/pascoayou/${cardPath}` : cardUrl
+    if (updateError) {
+      console.error("Erro ao atualizar registro do cartão:", updateError)
     }
 
     return NextResponse.json({
       success: true,
-      cardUrl,
-      previewUrl: "/placeholder.svg?height=600&width=400&text=Cartão+Gerado",
-      mensagem,
-      nome: nome || null,
-      templateId,
-      templateUrl: `/placeholder.svg?height=600&width=400&text=Template+${templateId}`,
-      fotoUrl: fotoUrl || null,
-      imageState: imageState || null,
+      sessionId: session.id,
+      checkoutUrl: session.url,
     })
-  } catch (error) {
-    console.error("Erro ao gerar cartão:", error)
-    return NextResponse.json({ success: false, error: "Falha ao gerar o cartão" }, { status: 500 })
+  } catch (error: any) {
+    console.error("Erro ao criar sessão de checkout:", error)
+    return NextResponse.json(
+      { success: false, error: "Falha ao processar pagamento: " + (error.message || "Erro desconhecido") },
+      { status: 500 },
+    )
   }
 }
-
