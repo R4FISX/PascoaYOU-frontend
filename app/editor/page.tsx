@@ -293,133 +293,164 @@ export default function EditorPage() {
     }
   }
 
-  const handlePreviewCard = async () => {
-    if (!selectedTemplate) {
-      setError("Por favor, selecione um template")
-      return
-    }
-
-    if (!mensagem.trim()) {
-      setError("Por favor, adicione uma mensagem")
-      return
-    }
-
-    try {
-      setPreviewing(true)
-      setError(null)
-
-      // Enviar dados para a API de geração de cartão em modo preview
-      const response = await fetch("/api/generate-card", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          templateId: selectedTemplate,
-          mensagem,
-          nome,
-          fotoUrl,
-          imageState: fotoUrl ? imageState : null,
-          isPreview: true,
-        }),
-      })
-
-      // Verificar se a resposta é bem-sucedida antes de tentar analisar o JSON
-      if (!response.ok) {
-        throw new Error(`Erro no servidor: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data.success) {
-        setGeneratedCard(data.previewUrl)
-        setActiveTab("preview")
-      } else {
-        setError(`Erro ao gerar preview: ${data.error}`)
-      }
-    } catch (error: any) {
-      console.error("Falha na geração do preview:", error)
-      setError(`Falha ao gerar o preview do cartão: ${error.message || "Erro desconhecido"}. Tente novamente.`)
-
-      // Em ambiente de desenvolvimento, usar uma imagem de placeholder para o preview
-      if (process.env.NODE_ENV === "development") {
-        setGeneratedCard("/placeholder.svg?height=600&width=400&text=Preview+Simulado")
-        setActiveTab("preview")
-      }
-    } finally {
-      setPreviewing(false)
-    }
+// Função revisada para visualizar o preview do cartão
+const handlePreviewCard = async () => {
+  if (!selectedTemplate) {
+    setError("Por favor, selecione um template")
+    return
   }
 
-  const handleCheckout = async () => {
-    if (!email.trim()) {
-      setError("Por favor, informe seu email para continuar")
-      return
+  if (!mensagem.trim()) {
+    setError("Por favor, adicione uma mensagem")
+    return
+  }
+
+  try {
+    setPreviewing(true)
+    setError(null)
+
+    // Criando o ID do cartão temporário para o preview
+    const tempCardId = `preview_${Date.now()}`
+
+    // Preparar dados para a API de forma mais segura
+    const requestData = {
+      templateId: selectedTemplate,
+      mensagem: mensagem.trim(),
+      nome: nome.trim(),
+      fotoUrl: fotoUrl || null,
+      imageState: fotoUrl ? imageState : null,
+      isPreview: true,
+      cardId: tempCardId,  // Adicionando cardId que estava faltando
+      email: email.trim() || "preview@example.com" // Garantindo que sempre haja um email
     }
 
-    if (!selectedTemplate) {
-      setError("Por favor, selecione um template")
-      return
-    }
+    console.log("Enviando dados para preview:", requestData)
 
-    if (!mensagem.trim()) {
-      setError("Por favor, adicione uma mensagem")
-      return
-    }
+    // Enviar dados para a API de geração de cartão em modo preview
+    const response = await fetch("/api/generate-card", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    })
+
+    // Capturando o texto da resposta para logging em caso de erro
+    const responseText = await response.text()
+    let data
 
     try {
-      setCheckoutLoading(true)
-      setError(null)
-
-      // Criar sessão de checkout
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          templateId: selectedTemplate,
-          mensagem,
-          nome,
-          fotoUrl,
-          imageState: fotoUrl ? imageState : null,
-        }),
-      })
-
-      // Verificar se a resposta é bem-sucedida antes de tentar analisar o JSON
-      if (!response.ok) {
-        throw new Error(`Erro no servidor: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data.success && data.checkoutUrl) {
-        // Limpar dados do localStorage antes de redirecionar
-        localStorage.removeItem("editorFormData")
-        localStorage.removeItem("imageEditorState")
-
-        // Redirecionar para a página de checkout do Stripe
-        window.location.href = data.checkoutUrl
-      } else {
-        setError(`Erro ao iniciar checkout: ${data.error}`)
-      }
-    } catch (error: any) {
-      console.error("Falha ao iniciar checkout:", error)
-      setError(`Falha ao processar o pagamento: ${error.message || "Erro desconhecido"}. Tente novamente.`)
-
-      // Em ambiente de desenvolvimento, redirecionar para a página de sucesso simulada
-      if (process.env.NODE_ENV === "development") {
-        // Limpar dados do localStorage antes de redirecionar
-        localStorage.removeItem("editorFormData")
-        localStorage.removeItem("imageEditorState")
-
-        router.push("/success?session_id=sim_" + Date.now())
-      }
-    } finally {
-      setCheckoutLoading(false)
+      // Tentando analisar o texto da resposta como JSON
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("Falha ao analisar resposta:", responseText)
+      throw new Error(`Erro ao analisar resposta: ${parseError.message}. Resposta bruta: ${responseText}`)
     }
+
+    if (data.success) {
+      setGeneratedCard(data.previewUrl)
+      setActiveTab("preview")
+    } else {
+      setError(`Erro ao gerar preview: ${data.error}`)
+    }
+  } catch (error: any) {
+    console.error("Falha na geração do preview:", error)
+    setError(`Falha ao gerar o preview do cartão: ${error.message || "Erro desconhecido"}. Tente novamente.`)
+
+    // Em ambiente de desenvolvimento, usar uma imagem de placeholder para o preview
+    if (process.env.NODE_ENV === "development") {
+      setGeneratedCard("/placeholder.svg?height=600&width=400&text=Preview+Simulado")
+      setActiveTab("preview")
+    }
+  } finally {
+    setPreviewing(false)
   }
+}
+
+// Função revisada para checkout
+const handleCheckout = async () => {
+  if (!email.trim()) {
+    setError("Por favor, informe seu email para continuar")
+    return
+  }
+
+  if (!selectedTemplate) {
+    setError("Por favor, selecione um template")
+    return
+  }
+
+  if (!mensagem.trim()) {
+    setError("Por favor, adicione uma mensagem")
+    return
+  }
+
+  try {
+    setCheckoutLoading(true)
+    setError(null)
+
+    // Criar um ID único para o cartão
+    const cardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
+
+    // Preparar dados de forma mais segura
+    const requestData = {
+      email: email.trim(),
+      templateId: selectedTemplate,
+      mensagem: mensagem.trim(),
+      nome: nome.trim() || "",
+      fotoUrl: fotoUrl || "",
+      imageState: fotoUrl ? imageState : null,
+      cardId: cardId  // Adicionando cardId que estava faltando
+    }
+
+    console.log("Enviando dados para checkout:", requestData)
+
+    // Criar sessão de checkout
+    const response = await fetch("/api/generate-card", {  // Alterado para usar generate-card diretamente
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    })
+
+    // Capturar resposta em texto primeiro para logging
+    const responseText = await response.text()
+    let data
+
+    try {
+      // Tentar analisar como JSON
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("Falha ao analisar resposta:", responseText)
+      throw new Error(`Erro ao analisar resposta: ${parseError.message}. Resposta bruta: ${responseText}`)
+    }
+
+    if (data.success && data.checkoutUrl) {
+      // Limpar dados do localStorage antes de redirecionar
+      localStorage.removeItem("editorFormData")
+      localStorage.removeItem("imageEditorState")
+
+      // Redirecionar para a página de checkout do Stripe
+      window.location.href = data.checkoutUrl
+    } else {
+      setError(`Erro ao iniciar checkout: ${data.error}`)
+    }
+  } catch (error: any) {
+    console.error("Falha ao iniciar checkout:", error)
+    setError(`Falha ao processar o pagamento: ${error.message || "Erro desconhecido"}. Tente novamente.`)
+
+    // Em ambiente de desenvolvimento, redirecionar para a página de sucesso simulada
+    if (process.env.NODE_ENV === "development") {
+      // Limpar dados do localStorage antes de redirecionar
+      localStorage.removeItem("editorFormData")
+      localStorage.removeItem("imageEditorState")
+
+      router.push("/success?session_id=sim_" + Date.now())
+    }
+  } finally {
+    setCheckoutLoading(false)
+  }
+}
 
   const handleImageChange = (newState: ImageState) => {
     setImageState(newState)
