@@ -8,11 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Check, Download, Share2 } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 
-// Inicializa o cliente do Supabase (client-side)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
 export default function SuccessPage() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id")
@@ -35,6 +30,13 @@ export default function SuccessPage() {
       }
 
       try {
+        // Inicializar o cliente Supabase apenas no lado do cliente
+        const supabaseUrl = "https://uthophxqgveapbjvvzqd.supabase.co"
+        // Usar a chave anônima para operações do lado do cliente
+        const supabaseAnonKey =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MTgxNzksImV4cCI6MjA1ODk5NDE3OX0.eSE1XkCxSqaj5Tn7h6uCXoRGQvnJBNMgRDGNKol0Qzs"
+        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
         // Primeiro, tentar buscar o cartão pelo ID diretamente do Supabase
         if (cardId) {
           const { data: cardData, error: cardError } = await supabase
