@@ -137,8 +137,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.DOMAIN || "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}&card_id=${cardId}`,
-      cancel_url: `${process.env.DOMAIN || "http://localhost:3000"}/editor?canceled=true`,
+      success_url: `${process.env.DOMAIN || "pascoa-you-frontend.vercel.app"}/success?session_id={CHECKOUT_SESSION_ID}&card_id=${cardId}`,
+      cancel_url: `${process.env.DOMAIN || "pascoa-you-frontend.vercel.app"}/editor?canceled=true`,
       customer_email: email,
       metadata: {
         cardId,
