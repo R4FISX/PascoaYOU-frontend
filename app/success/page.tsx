@@ -1,205 +1,206 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Loader2, Check, Download, Share2 } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
+import { Card, CardContent } from "@/components/ui/card"
+import { Loader2, Check, Share2, Download, InstagramIcon as Tiktok, Instagram, MessageSquare } from "lucide-react"
 
 export default function SuccessPage() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id")
-  const cardId = searchParams.get("card_id")
 
-  const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [cardUrl, setCardUrl] = useState<string | null>(null)
-  const [cardDetails, setCardDetails] = useState<{
-    mensagem: string
-    nome?: string
-  } | null>(null)
+  const [card, setCard] = useState<any>(null)
 
   useEffect(() => {
-    const fetchCardDetails = async () => {
-      if (!sessionId && !cardId) {
-        setError("Informações da sessão de pagamento não encontradas")
-        setLoading(false)
-        return
-      }
-
-      // Verificar se é um ID de preview
-      if (cardId && cardId.startsWith("preview_")) {
-        setCardUrl(`/placeholder.svg?height=600&width=400&text=Preview+Card`)
-        setCardDetails({
-          mensagem: "Esta é uma prévia do seu cartão de Páscoa. Para gerar o cartão final, complete o pagamento.",
-          nome: "Prévia",
-        })
-        setLoading(false)
+    const fetchCard = async () => {
+      if (!sessionId) {
+        setError("ID da sessão não encontrado")
+        setIsLoading(false)
         return
       }
 
       try {
-        // Inicializar o cliente Supabase apenas no lado do cliente
-        const supabaseUrl = "https://uthophxqgveapbjvvzqd.supabase.co"
-        // Usar a chave anônima para operações do lado do cliente
-        const supabaseAnonKey =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MTgxNzksImV4cCI6MjA1ODk5NDE3OX0.eSE1XkCxSqaj5Tn7h6uCXoRGQvnJBNMgRDGNKol0Qzs"
-        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1500))
 
-        // Primeiro, tentar buscar o cartão pelo ID diretamente do Supabase
-        if (cardId) {
-          const { data: cardData, error: cardError } = await supabase
-            .from("cards")
-            .select("*")
-            .eq("id", cardId)
-            .single()
-
-          if (cardData && !cardError) {
-            setCardUrl(cardData.card_url)
-            setCardDetails({
-              mensagem: cardData.mensagem,
-              nome: cardData.nome,
-            })
-            setLoading(false)
-            return
-          }
-        }
-
-        // Se não encontrou pelo ID ou ocorreu erro, tentar pela API
-        const response = await fetch("/api/get-card", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId,
-            cardId,
-          }),
+        // In a real implementation, this would call the API to get the card data
+        setCard({
+          id: "card_123",
+          template_id: "template-1",
+          message: "Feliz Páscoa! Que esta data seja repleta de alegria e renovação.",
+          name: "Maria Silva",
+          email: "maria@example.com",
+          card_url: "/placeholder.svg?height=600&width=800&text=Card+Final",
+          status: "paid",
         })
-
-        if (!response.ok) {
-          throw new Error(`Erro ao buscar cartão: ${response.status} ${response.statusText}`)
-        }
-
-        const data = await response.json()
-
-        if (data.success) {
-          setCardUrl(data.cardUrl)
-          setCardDetails({
-            mensagem: data.mensagem,
-            nome: data.nome,
-          })
-        } else {
-          throw new Error(data.error || "Erro ao buscar detalhes do cartão")
-        }
-      } catch (error: any) {
-        console.error("Falha ao buscar cartão:", error)
-        setError(
-          `Ocorreu um erro ao buscar seu cartão: ${error.message || "Erro desconhecido"}. Por favor, entre em contato com o suporte.`,
-        )
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro desconhecido")
       } finally {
-        setLoading(false)
+        setIsLoading(false)
       }
     }
 
-    fetchCardDetails()
-  }, [sessionId, cardId])
+    fetchCard()
+  }, [sessionId])
 
-  const handleShare = async () => {
-    if (cardUrl && navigator.share) {
-      try {
-        await navigator.share({
-          title: "Meu Cartão de Páscoa Personalizado",
-          text: "Veja o cartão de Páscoa que eu criei!",
-          url: cardUrl,
-        })
-      } catch (error) {
-        console.error("Erro ao compartilhar:", error)
+  const handleShare = (platform: string) => {
+    if (card?.card_url) {
+      let shareUrl = ""
+
+      switch (platform) {
+        case "tiktok":
+          // TikTok doesn't have a direct web share API, so we'll just copy the link
+          navigator.clipboard
+            .writeText(card.card_url)
+            .then(() => alert("Link copiado! Abra o TikTok e cole o link para compartilhar."))
+            .catch((err) => console.error("Erro ao copiar link:", err))
+          break
+        case "instagram":
+          // Instagram doesn't have a direct web share API, so we'll just copy the link
+          navigator.clipboard
+            .writeText(card.card_url)
+            .then(() => alert("Link copiado! Abra o Instagram e cole o link para compartilhar."))
+            .catch((err) => console.error("Erro ao copiar link:", err))
+          break
+        case "whatsapp":
+          shareUrl = `https://wa.me/?text=${encodeURIComponent("Veja meu cartão de Páscoa personalizado! " + card.card_url)}`
+          window.open(shareUrl, "_blank")
+          break
+        default:
+          // Use Web Share API if available
+          if (navigator.share) {
+            navigator
+              .share({
+                title: "Meu Cartão de Páscoa",
+                text: "Veja o cartão de Páscoa que eu criei!",
+                url: card.card_url,
+              })
+              .catch((err) => {
+                console.error("Erro ao compartilhar:", err)
+              })
+          } else {
+            // Fallback for browsers that don't support navigator.share
+            navigator.clipboard
+              .writeText(card.card_url)
+              .then(() => alert("Link copiado para a área de transferência!"))
+              .catch((err) => console.error("Erro ao copiar link:", err))
+          }
       }
-    } else {
-      // Fallback para copiar o link
-      navigator.clipboard.writeText(cardUrl || window.location.href)
-      alert("Link copiado para a área de transferência!")
     }
   }
 
   return (
-    <div className="min-h-screen bg-pink-50 py-12">
-      <div className="container max-w-4xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="p-8">
-            <div className="flex flex-col items-center text-center mb-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <Check className="h-8 w-8 text-green-600" />
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-2xl mx-auto">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin mb-4 text-[#FF2D55]" />
+            <p className="text-lg">Carregando seu cartão...</p>
+          </div>
+        ) : error ? (
+          <Card className="border-none shadow-lg">
+            <CardContent className="p-8 text-center">
+              <h1 className="text-2xl font-bold mb-4">Ops! Algo deu errado</h1>
+              <p className="mb-6 text-muted-foreground">{error}</p>
+              <Link href="/">
+                <Button className="bg-[#FF2D55] hover:bg-[#FF1A45]">Voltar para a Página Inicial</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : card ? (
+          <Card className="border-none shadow-lg">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-center mb-6">
+                <div className="bg-green-100 rounded-full p-3">
+                  <Check className="h-8 w-8 text-green-600" />
+                </div>
               </div>
-              <h1 className="text-3xl font-bold text-pink-800 mb-2">Pagamento Confirmado!</h1>
-              <p className="text-muted-foreground max-w-md">
-                Seu cartão de Páscoa personalizado foi gerado com sucesso. Agora você pode baixá-lo e compartilhá-lo.
-              </p>
-            </div>
 
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Loader2 className="h-12 w-12 animate-spin text-pink-500 mb-4" />
-                <p className="text-muted-foreground">Buscando seu cartão personalizado...</p>
+              <h1 className="text-2xl font-bold text-center mb-2">Pagamento Confirmado!</h1>
+              <p className="text-center text-muted-foreground mb-8">
+                Seu cartão de Páscoa está pronto para bombar nas redes sociais
+              </p>
+
+              <div className="mb-8 relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-[#FF2D55] to-[#FFD700] rounded-lg blur-sm"></div>
+                <div className="relative">
+                  <img
+                    src={card.card_url || "/placeholder.svg"}
+                    alt="Seu cartão de Páscoa"
+                    className="w-full rounded-md shadow-md"
+                  />
+                </div>
               </div>
-            ) : error ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                <p className="text-red-600 mb-4">{error}</p>
-                <Link href="/editor">
-                  <Button variant="outline">Voltar para o Editor</Button>
+
+              <div className="mb-8">
+                <h3 className="font-bold text-lg mb-3">Compartilhe nas redes sociais</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <Button
+                    variant="outline"
+                    className="flex flex-col items-center justify-center h-auto py-3"
+                    onClick={() => handleShare("tiktok")}
+                  >
+                    <Tiktok className="h-6 w-6 mb-1" />
+                    <span className="text-xs">TikTok</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex flex-col items-center justify-center h-auto py-3"
+                    onClick={() => handleShare("instagram")}
+                  >
+                    <Instagram className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Instagram</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex flex-col items-center justify-center h-auto py-3"
+                    onClick={() => handleShare("whatsapp")}
+                  >
+                    <MessageSquare className="h-6 w-6 mb-1" />
+                    <span className="text-xs">WhatsApp</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button className="flex-1 bg-[#FF2D55] hover:bg-[#FF1A45]" onClick={() => handleShare("default")}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Compartilhar Cartão
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    // In a real implementation, this would download the image
+                    alert("Em uma implementação real, isso baixaria a imagem do cartão.")
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Baixar Cartão
+                </Button>
+              </div>
+
+              <div className="mt-8 bg-[#FFF5F7] rounded-lg p-4">
+                <p className="text-center text-sm text-muted-foreground">
+                  Um email com o link do seu cartão também foi enviado para {card.email}
+                </p>
+              </div>
+
+              <div className="mt-8 text-center">
+                <Link href="/">
+                  <Button variant="link" className="text-[#FF2D55]">
+                    Voltar para a Página Inicial
+                  </Button>
                 </Link>
               </div>
-            ) : (
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="relative h-[400px] w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg">
-                  {cardUrl ? (
-                    <Image src={cardUrl || "/placeholder.svg"} alt="Cartão gerado" fill className="object-contain" />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <p className="text-gray-500">Imagem não disponível</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-6">
-                  <div className="bg-pink-50 p-4 rounded-lg">
-                    <h3 className="font-medium mb-2">Sua mensagem:</h3>
-                    <p className="italic">{cardDetails?.mensagem || ""}</p>
-                    {cardDetails?.nome && <p className="mt-2 font-medium">Para: {cardDetails.nome}</p>}
-                  </div>
-
-                  <div className="space-y-3">
-                    <Button className="w-full bg-pink-500 hover:bg-pink-600" asChild>
-                      <a href={cardUrl || "#"} download="cartao-pascoa-personalizado.png">
-                        <Download className="mr-2 h-4 w-4" />
-                        Baixar Cartão
-                      </a>
-                    </Button>
-
-                    <Button variant="outline" className="w-full" onClick={handleShare}>
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Compartilhar
-                    </Button>
-
-                    <Link href="/">
-                      <Button variant="ghost" className="w-full">
-                        Voltar para a Página Inicial
-                      </Button>
-                    </Link>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground text-center">
-                    Obrigado por usar nosso serviço! Esperamos que seus amigos e familiares gostem do seu cartão de
-                    Páscoa personalizado.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </div>
   )

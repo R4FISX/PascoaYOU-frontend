@@ -1,125 +1,78 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import Stripe from "stripe"
-import { v4 as uuidv4 } from "uuid"
+import { NextResponse } from "next/server"
+import { stripe } from "@/lib/stripe"
+import { supabase } from "@/lib/supabase"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-// Inicializa o cliente do Supabase
-const supabaseUrl = process.env.SUPABASE_URL || "https://uthophxqgveapbjvvzqd.supabase.co"
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQxODE3OSwiZXhwIjoyMDU4OTk0MTc5fQ.266I-yb0IoT-NOob4ob1CtwaXNcxFwnRfifRBtUPzXE"
-const supabase = createClient(supabaseUrl, supabaseKey)
-
-// Inicializa o Stripe com a chave secreta
-const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY ||
-    "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot",
-  {
-    apiVersion: "2023-10-16",
-  },
-)
-
-// Função auxiliar para validar os dados de entrada
-function validateInput(body: any, isPreview: boolean) {
-  // Validação comum para ambos os fluxos
-  if (!body.templateId) {
-    return { valid: false, error: "ID do template é obrigatório" }
-  }
-
-  if (!body.mensagem || body.mensagem.trim() === "") {
-    return { valid: false, error: "Mensagem é obrigatória" }
-  }
-
-  // Validação específica para o fluxo de checkout
-  if (!isPreview) {
-    if (!body.email || body.email.trim() === "") {
-      return { valid: false, error: "Email é obrigatório para checkout" }
-    }
-
-    if (!body.cardId) {
-      return { valid: false, error: "ID do cartão é obrigatório para checkout" }
-    }
-  }
-
-  return { valid: true }
-}
-
-export async function POST(request: NextRequest) {
-  console.log("🔄 Iniciando processamento da requisição generate-card")
-
+export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    console.log("📦 Payload recebido:", {
-      templateId: body.templateId,
-      mensagem: body.mensagem ? "presente" : "ausente",
-      nome: body.nome || "não informado",
-      fotoUrl: body.fotoUrl ? "presente" : "ausente",
-      imageState: body.imageState ? "presente" : "ausente",
-      isPreview: body.isPreview === true ? "sim" : "não",
-      email: body.email ? "presente" : "ausente",
-      cardId: body.cardId || "ausente",
-    })
+    const { cardId, email, isPreview } = await request.json()
 
-    const { templateId, mensagem, nome, fotoUrl, imageState, email, cardId } = body
-    const isPreview = body.isPreview === true
+    console.log("Generate card request:", { cardId, email, isPreview })
 
-    console.log(`🔍 Modo: ${isPreview ? "Preview" : "Checkout"}`)
-
-    // Validar os dados de entrada
-    const validation = validateInput(body, isPreview)
-    if (!validation.valid) {
-      console.log("❌ Validação falhou:", validation.error)
-      return NextResponse.json({ success: false, error: validation.error }, { status: 400 })
-    }
-
-    // === FLUXO DE PREVIEW ===
+    // Handle preview mode
     if (isPreview) {
-      console.log("🖼️ Gerando preview do cartão")
+      // For preview, we just return a mock URL
+      // In a real implementation, you might generate a temporary preview image
 
-      // Simular processamento
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Simulate processing delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      // Gerar um ID temporário para o preview
-      const previewId = `preview_${uuidv4()}`
-
-      // Retornar dados de preview sem salvar no banco ou criar sessão
       return NextResponse.json({
         success: true,
-        previewId,
-        previewUrl: `/placeholder.svg?height=600&width=400&text=Preview+${templateId}`,
-        mensagem,
-        nome: nome || null,
-        templateId,
-        templateUrl: `/placeholder.svg?height=600&width=400&text=Template+${templateId}`,
-        fotoUrl: fotoUrl || null,
-        imageState: imageState || null,
+        previewId: `preview_${cardId || Date.now()}`,
+        previewUrl: "/placeholder.svg?height=600&width=800&text=Preview+do+Cartão",
       })
     }
 
-    // === FLUXO DE CHECKOUT ===
-    console.log("💳 Iniciando fluxo de checkout")
-
-    // Verificar se o cartão existe no banco de dados
-    const { data: cardData, error: cardError } = await supabase.from("cards").select("*").eq("id", cardId).single()
-
-    if (cardError || !cardData) {
-      console.error("❌ Erro ao buscar cartão:", cardError)
+    // For actual checkout, validate required fields
+    if (!cardId) {
       return NextResponse.json(
         {
           success: false,
-          error: "Cartão não encontrado. Por favor, tente novamente.",
+          error: "ID do cartão é obrigatório",
+        },
+        { status: 400 },
+      )
+    }
+
+    if (!email) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Email é obrigatório para checkout",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Get card data from database
+    const { data: cardData, error: cardError } = await supabase.from("cards").select("*").eq("id", cardId).single()
+
+    if (cardError || !cardData) {
+      console.error("Error fetching card data:", cardError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Cartão não encontrado",
         },
         { status: 404 },
       )
     }
 
-    console.log("✅ Cartão encontrado:", cardData.id)
+    // Update email if not already set
+    if (!cardData.email && email) {
+      const { error: updateError } = await supabase.from("cards").update({ email }).eq("id", cardId)
 
-    // Criar uma sessão de checkout no Stripe
-    console.log("🔄 Criando sessão de checkout no Stripe")
+      if (updateError) {
+        console.error("Error updating email:", updateError)
+      }
+    }
+
+    // Create Stripe checkout session
+    const domain = process.env.DOMAIN || "http://localhost:3000"
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -128,70 +81,49 @@ export async function POST(request: NextRequest) {
             currency: "brl",
             product_data: {
               name: "Cartão de Páscoa Personalizado",
-              description: "Acesso à criação de cartões de Páscoa personalizados",
-              images: [cardData.card_url || "https://example.com/easter-card-preview.jpg"],
+              description: "Cartão de Páscoa digital personalizado para TikTok e Instagram",
             },
-            unit_amount: 499, // R$ 4,99 em centavos
+            unit_amount: 499, // R$ 4.99 in cents
           },
           quantity: 1,
         },
       ],
       mode: "payment",
-      success_url: `${process.env.DOMAIN || "pascoa-you-frontend.vercel.app"}/success?session_id={CHECKOUT_SESSION_ID}&card_id=${cardId}`,
-      cancel_url: `${process.env.DOMAIN || "pascoa-you-frontend.vercel.app"}/editor?canceled=true`,
+      success_url: `${domain}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${domain}/editor`,
       customer_email: email,
       metadata: {
-        cardId,
-        templateId: templateId.toString(),
-        mensagem,
-        nome: nome || "",
-        fotoUrl: fotoUrl || "",
+        cardId: cardId,
       },
     })
 
-    console.log("✅ Sessão de checkout criada:", session.id)
-
-    // Atualizar o registro do cartão com o ID da sessão do Stripe
+    // Update card with session ID
     const { error: updateError } = await supabase
       .from("cards")
       .update({
         session_id: session.id,
-        updated_at: new Date().toISOString(),
+        email: email,
       })
       .eq("id", cardId)
 
     if (updateError) {
-      console.error("⚠️ Erro ao atualizar registro do cartão:", updateError)
-      // Não falhar a requisição por causa disso, apenas logar o erro
-    } else {
-      console.log("✅ Registro do cartão atualizado com session_id")
+      console.error("Error updating session ID:", updateError)
     }
 
-    // Retornar os dados da sessão de checkout
     return NextResponse.json({
       success: true,
-      sessionId: session.id,
       checkoutUrl: session.url,
-      cardId,
+      sessionId: session.id,
     })
-  } catch (error: any) {
-    console.error("❌ Erro ao processar requisição:", error)
-
-    // Determinar o código de status apropriado
-    let statusCode = 500
-    if (error.type === "StripeInvalidRequestError") {
-      statusCode = 400
-    }
-
+  } catch (error) {
+    console.error("Error in generate-card:", error)
     return NextResponse.json(
       {
         success: false,
-        error: `Falha ao processar a requisição: ${error.message || "Erro desconhecido"}`,
+        error: "Erro interno do servidor",
       },
-      { status: statusCode },
+      { status: 500 },
     )
-  } finally {
-    console.log("🏁 Finalizando processamento da requisição generate-card")
   }
 }
 

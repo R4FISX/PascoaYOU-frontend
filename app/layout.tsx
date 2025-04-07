@@ -1,36 +1,36 @@
 import type React from "react"
-import "@/app/globals.css"
+import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import "./globals.css"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
-  title: "Easter Cards - Crie Cartões de Páscoa Personalizados",
-  description: "Crie e compartilhe cartões de Páscoa personalizados com seus amigos e familiares em minutos.",
-  keywords: ["páscoa", "cartões", "personalizados", "easter", "cards"],
-  openGraph: {
-    title: "Easter Cards - Crie Cartões de Páscoa Personalizados",
-    description: "Crie e compartilhe cartões de Páscoa personalizados com seus amigos e familiares em minutos.",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Easter Cards",
-      },
-    ],
-  },
+export const metadata: Metadata = {
+  title: "PáscoaTok | Cartões de Páscoa Personalizados",
+  description:
+    "Crie cartões de Páscoa personalizados e compartilhe no TikTok, Instagram e WhatsApp. Designs modernos e criativos por apenas R$4,99.",
+  keywords: "cartão de páscoa personalizado, cartão digital, páscoa, tiktok, instagram",
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+    <html lang="pt-BR" className="light" style={{ colorScheme: "light" }}>
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <div className="flex-grow">{children}</div>
+            <Footer />
+          </div>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
-

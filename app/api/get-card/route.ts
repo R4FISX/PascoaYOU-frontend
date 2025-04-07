@@ -1,187 +1,126 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import Stripe from "stripe"
+import { NextResponse } from "next/server"
+import { stripe } from "@/lib/stripe"
+import { supabase } from "@/lib/supabase"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-// Inicializa o cliente do Supabase
-const supabaseUrl = process.env.SUPABASE_URL || "https://uthophxqgveapbjvvzqd.supabase.co"
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQxODE3OSwiZXhwIjoyMDU4OTk0MTc5fQ.266I-yb0IoT-NOob4ob1CtwaXNcxFwnRfifRBtUPzXE"
-const supabase = createClient(supabaseUrl, supabaseKey)
-
-// Inicializa o Stripe com a chave secreta
-const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY ||
-    "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot",
-  {
-    apiVersion: "2023-10-16",
-  },
-)
-
-export async function POST(request: NextRequest) {
-  console.log("🔄 Iniciando processamento da requisição get-card")
-
+export async function GET(request: Request) {
   try {
-    const body = await request.json()
-    console.log("📦 Payload recebido:", body)
+    const { searchParams } = new URL(request.url)
+    const cardId = searchParams.get("cardId")
+    const sessionId = searchParams.get("sessionId")
 
-    const { sessionId, cardId, isPreview } = body
-
-    // Verificar se é um preview
-    if (isPreview === true || (cardId && cardId.startsWith("preview_"))) {
-      console.log("🖼️ Modo preview detectado, retornando dados simulados")
-
-      // Extrair o templateId do cardId se disponível
-      let templateId = 1
-      if (cardId && cardId.includes("_template_")) {
-        const parts = cardId.split("_template_")
-        if (parts.length > 1 && !isNaN(Number.parseInt(parts[1]))) {
-          templateId = Number.parseInt(parts[1])
-        }
-      }
-
-      return NextResponse.json({
-        success: true,
-        cardUrl: `/placeholder.svg?height=600&width=400&text=Preview+${templateId}`,
-        mensagem: body.mensagem || "Mensagem de preview",
-        nome: body.nome || null,
-        templateId: body.templateId || templateId,
-        fotoUrl: body.fotoUrl || null,
-        imageState: body.imageState || null,
-        status: "preview",
-      })
-    }
-
-    // Validação básica
-    if (!sessionId && !cardId) {
-      console.log("❌ Validação falhou: ID da sessão ou do cartão é obrigatório")
+    if (!cardId && !sessionId) {
       return NextResponse.json(
         {
           success: false,
-          error: "ID da sessão ou do cartão é obrigatório",
+          error: "cardId ou sessionId é obrigatório",
         },
         { status: 400 },
       )
     }
 
-    let card = null
-    let paymentStatus = null
+    let card
 
-    // Buscar pelo ID do cartão
+    // Try to find card by ID first
     if (cardId) {
-      console.log("🔍 Buscando cartão pelo ID:", cardId)
       const { data, error } = await supabase.from("cards").select("*").eq("id", cardId).single()
 
-      if (data && !error) {
+      if (!error && data) {
         card = data
-        console.log("✅ Cartão encontrado pelo ID")
-      } else if (error) {
-        console.log("⚠️ Erro ao buscar cartão pelo ID:", error)
+      } else {
+        console.error("Error fetching card by ID:", error)
       }
     }
 
-    // Se não encontrou pelo ID do cartão, buscar pelo ID da sessão
+    // If not found by ID or we're using sessionId, try to find by session
     if (!card && sessionId) {
-      console.log("🔍 Buscando cartão pelo ID da sessão:", sessionId)
       const { data, error } = await supabase.from("cards").select("*").eq("session_id", sessionId).single()
 
-      if (data && !error) {
+      if (!error && data) {
         card = data
-        console.log("✅ Cartão encontrado pelo ID da sessão")
-      } else if (error) {
-        console.log("⚠️ Erro ao buscar cartão pelo ID da sessão:", error)
+      } else {
+        console.error("Error fetching card by session ID:", error)
 
-        // Se ainda não encontrou, verificar a sessão do Stripe
+        // If still not found, try to get cardId from Stripe session metadata
         try {
-          console.log("🔍 Verificando sessão do Stripe:", sessionId)
           const session = await stripe.checkout.sessions.retrieve(sessionId)
-          paymentStatus = session.payment_status
-
-          console.log("✅ Sessão do Stripe encontrada, status:", paymentStatus)
 
           if (session.metadata?.cardId) {
-            console.log("🔍 Buscando cartão pelo ID nos metadados:", session.metadata.cardId)
             const { data: cardData, error: cardError } = await supabase
               .from("cards")
               .select("*")
               .eq("id", session.metadata.cardId)
               .single()
 
-            if (cardData && !cardError) {
+            if (!cardError && cardData) {
               card = cardData
-              console.log("✅ Cartão encontrado pelos metadados da sessão")
-            } else if (cardError) {
-              console.log("⚠️ Erro ao buscar cartão pelos metadados:", cardError)
+
+              // Update the session_id if it's not set
+              if (!card.session_id) {
+                await supabase.from("cards").update({ session_id: sessionId }).eq("id", card.id)
+              }
             }
           }
         } catch (stripeError) {
-          console.error("❌ Erro ao buscar sessão do Stripe:", stripeError)
+          console.error("Error fetching Stripe session:", stripeError)
         }
       }
     }
 
     if (!card) {
-      console.log("❌ Cartão não encontrado")
-      return NextResponse.json({ success: false, error: "Cartão não encontrado" }, { status: 404 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Cartão não encontrado",
+        },
+        { status: 404 },
+      )
     }
 
-    // Verificar o status do pagamento no Stripe se temos o ID da sessão
-    if (sessionId && !paymentStatus) {
+    // If we have a sessionId, check payment status and update card status if needed
+    if (sessionId && card.status === "pending") {
       try {
-        console.log("🔍 Verificando status do pagamento no Stripe")
         const session = await stripe.checkout.sessions.retrieve(sessionId)
-        paymentStatus = session.payment_status
-        console.log("✅ Status do pagamento:", paymentStatus)
+
+        if (session.payment_status === "paid") {
+          // Update card status to paid
+          const { error: updateError } = await supabase
+            .from("cards")
+            .update({
+              status: "paid",
+              // In a real implementation, you would generate the final card image here
+              // and update the card_url field
+              card_url: card.photo_url, // For now, just use the uploaded image
+            })
+            .eq("id", card.id)
+
+          if (updateError) {
+            console.error("Error updating card status:", updateError)
+          } else {
+            card.status = "paid"
+            card.card_url = card.photo_url
+          }
+        }
       } catch (stripeError) {
-        console.error("⚠️ Erro ao verificar status do pagamento:", stripeError)
-        // Não falhar a requisição por causa disso
+        console.error("Error checking payment status:", stripeError)
       }
     }
 
-    // Atualizar o status do cartão para 'paid' se o pagamento foi confirmado
-    if ((paymentStatus === "paid" || sessionId) && card.status === "pending") {
-      console.log("🔄 Atualizando status do cartão para 'paid'")
-      const { error: updateError } = await supabase
-        .from("cards")
-        .update({
-          status: "paid",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", card.id)
-
-      if (updateError) {
-        console.error("⚠️ Erro ao atualizar status do cartão:", updateError)
-        // Não falhar a requisição por causa disso
-      } else {
-        console.log("✅ Status do cartão atualizado para 'paid'")
-      }
-    }
-
-    console.log("✅ Retornando dados do cartão")
     return NextResponse.json({
       success: true,
-      cardUrl: card.card_url,
-      mensagem: card.mensagem,
-      nome: card.nome,
-      templateId: card.template_id,
-      fotoUrl: card.foto_url,
-      imageState: card.image_state,
-      status: card.status,
+      card,
     })
-  } catch (error: any) {
-    console.error("❌ Erro ao buscar cartão:", error)
+  } catch (error) {
+    console.error("Error in get-card:", error)
     return NextResponse.json(
       {
         success: false,
-        error: "Falha ao buscar o cartão: " + (error.message || "Erro desconhecido"),
+        error: "Erro interno do servidor",
       },
       { status: 500 },
     )
-  } finally {
-    console.log("🏁 Finalizando processamento da requisição get-card")
   }
 }
 

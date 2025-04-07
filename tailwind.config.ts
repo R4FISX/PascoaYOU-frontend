@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss"
 
 const config = {
+  darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -25,7 +26,7 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#EC4899", // Pink-500
+          DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -72,9 +73,31 @@ const config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      typography: (theme: any) => ({
+        DEFAULT: {
+          css: {
+            maxWidth: "none",
+            h2: {
+              fontWeight: "700",
+              marginTop: "2rem",
+              marginBottom: "1rem",
+            },
+            p: {
+              marginTop: "1rem",
+              marginBottom: "1rem",
+            },
+            a: {
+              color: theme("colors.pink.500"),
+              "&:hover": {
+                color: theme("colors.pink.600"),
+              },
+            },
+          },
+        },
+      }),
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config
 
 export default config
