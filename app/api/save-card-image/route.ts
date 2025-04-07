@@ -24,16 +24,13 @@ export async function POST(request: NextRequest) {
       fotoUrl: body.fotoUrl ? "presente" : "ausente",
       imageState: body.imageState ? "presente" : "ausente",
       imageDataUrl: body.imageDataUrl ? "presente (base64)" : "ausente",
+      isPreview: body.isPreview === true ? "sim" : "não",
     })
 
     const { imageDataUrl, templateId, mensagem, nome, fotoUrl, imageState } = body
+    const isPreview = body.isPreview === true
 
     // Validação básica
-    if (!imageDataUrl) {
-      console.log("❌ Validação falhou: Imagem do cartão é obrigatória")
-      return NextResponse.json({ success: false, error: "Imagem do cartão é obrigatória" }, { status: 400 })
-    }
-
     if (!templateId) {
       console.log("❌ Validação falhou: ID do template é obrigatório")
       return NextResponse.json({ success: false, error: "ID do template é obrigatório" }, { status: 400 })
@@ -42,6 +39,25 @@ export async function POST(request: NextRequest) {
     if (!mensagem || mensagem.trim() === "") {
       console.log("❌ Validação falhou: Mensagem é obrigatória")
       return NextResponse.json({ success: false, error: "Mensagem é obrigatória" }, { status: 400 })
+    }
+
+    // No modo preview, retornar um ID simulado sem salvar no banco
+    if (isPreview) {
+      console.log("🖼️ Modo preview detectado, retornando ID simulado")
+      const previewId = `preview_${uuidv4()}`
+
+      return NextResponse.json({
+        success: true,
+        cardId: previewId,
+        imageUrl: `/placeholder.svg?height=600&width=400&text=Preview+${templateId}`,
+        message: "Preview do cartão gerado com sucesso!",
+      })
+    }
+
+    // Validação específica para o fluxo de checkout
+    if (!imageDataUrl) {
+      console.log("❌ Validação falhou: Imagem do cartão é obrigatória para checkout")
+      return NextResponse.json({ success: false, error: "Imagem do cartão é obrigatória" }, { status: 400 })
     }
 
     // Gerar um ID único para o cartão

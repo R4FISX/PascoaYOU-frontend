@@ -29,6 +29,17 @@ export default function SuccessPage() {
         return
       }
 
+      // Verificar se é um ID de preview
+      if (cardId && cardId.startsWith("preview_")) {
+        setCardUrl(`/placeholder.svg?height=600&width=400&text=Preview+Card`)
+        setCardDetails({
+          mensagem: "Esta é uma prévia do seu cartão de Páscoa. Para gerar o cartão final, complete o pagamento.",
+          nome: "Prévia",
+        })
+        setLoading(false)
+        return
+      }
+
       try {
         // Inicializar o cliente Supabase apenas no lado do cliente
         const supabaseUrl = "https://uthophxqgveapbjvvzqd.supabase.co"

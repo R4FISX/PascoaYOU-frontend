@@ -335,7 +335,7 @@ export default function EditorPage() {
         }
       }
 
-      // Fallback para a API se a geração local falhar
+      // Chamar a API de preview
       const response = await fetch("/api/generate-card", {
         method: "POST",
         headers: {
@@ -347,7 +347,7 @@ export default function EditorPage() {
           nome,
           fotoUrl,
           imageState: fotoUrl ? imageState : null,
-          isPreview: true,
+          isPreview: true, // Indicar que é um preview
         }),
       })
 
@@ -420,6 +420,7 @@ export default function EditorPage() {
           nome,
           fotoUrl,
           imageState: fotoUrl ? imageState : null,
+          isPreview: false, // Indicar que não é um preview
         }),
       })
 

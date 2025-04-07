@@ -28,7 +28,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log("📦 Payload recebido:", body)
 
-    const { sessionId, cardId } = body
+    const { sessionId, cardId, isPreview } = body
+
+    // Verificar se é um preview
+    if (isPreview === true || (cardId && cardId.startsWith("preview_"))) {
+      console.log("🖼️ Modo preview detectado, retornando dados simulados")
+
+      // Extrair o templateId do cardId se disponível
+      let templateId = 1
+      if (cardId && cardId.includes("_template_")) {
+        const parts = cardId.split("_template_")
+        if (parts.length > 1 && !isNaN(Number.parseInt(parts[1]))) {
+          templateId = Number.parseInt(parts[1])
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        cardUrl: `/placeholder.svg?height=600&width=400&text=Preview+${templateId}`,
+        mensagem: body.mensagem || "Mensagem de preview",
+        nome: body.nome || null,
+        templateId: body.templateId || templateId,
+        fotoUrl: body.fotoUrl || null,
+        imageState: body.imageState || null,
+        status: "preview",
+      })
+    }
 
     // Validação básica
     if (!sessionId && !cardId) {

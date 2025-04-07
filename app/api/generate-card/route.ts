@@ -53,13 +53,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log("📦 Payload recebido:", {
-      ...body,
-      // Omitir dados sensíveis ou muito grandes nos logs
+      templateId: body.templateId,
+      mensagem: body.mensagem ? "presente" : "ausente",
+      nome: body.nome || "não informado",
+      fotoUrl: body.fotoUrl ? "presente" : "ausente",
       imageState: body.imageState ? "presente" : "ausente",
-      imageDataUrl: body.imageDataUrl ? "presente (base64)" : "ausente",
+      isPreview: body.isPreview === true ? "sim" : "não",
+      email: body.email ? "presente" : "ausente",
+      cardId: body.cardId || "ausente",
     })
 
-    const { templateId, mensagem, nome, fotoUrl, imageState, sessionId, email, cardId } = body
+    const { templateId, mensagem, nome, fotoUrl, imageState, email, cardId } = body
     const isPreview = body.isPreview === true
 
     console.log(`🔍 Modo: ${isPreview ? "Preview" : "Checkout"}`)
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
       console.log("🖼️ Gerando preview do cartão")
 
       // Simular processamento
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       // Gerar um ID temporário para o preview
       const previewId = `preview_${uuidv4()}`
