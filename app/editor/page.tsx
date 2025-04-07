@@ -367,7 +367,6 @@ const handlePreviewCard = async () => {
   }
 }
 
-// Função revisada para checkout
 const handleCheckout = async () => {
   if (!email.trim()) {
     setError("Por favor, informe seu email para continuar")
@@ -399,13 +398,14 @@ const handleCheckout = async () => {
       nome: nome.trim() || "",
       fotoUrl: fotoUrl || "",
       imageState: fotoUrl ? imageState : null,
-      cardId: cardId  // Adicionando cardId que estava faltando
+      cardId: cardId,
+      createCheckoutSession: true  // Indicar explicitamente que queremos criar uma sessão de checkout
     }
 
     console.log("Enviando dados para checkout:", requestData)
 
     // Criar sessão de checkout
-    const response = await fetch("/api/generate-card", {  // Alterado para usar generate-card diretamente
+    const response = await fetch("/api/create-checkout", {  // Alterado para API específica de checkout
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -413,17 +413,14 @@ const handleCheckout = async () => {
       body: JSON.stringify(requestData),
     })
 
-    // Capturar resposta em texto primeiro para logging
-    const responseText = await response.text()
-    let data
-
-    try {
-      // Tentar analisar como JSON
-      data = JSON.parse(responseText)
-    } catch (parseError) {
-      console.error("Falha ao analisar resposta:", responseText)
-      throw new Error(`Erro ao analisar resposta: ${parseError.message}. Resposta bruta: ${responseText}`)
+    // Verificar se a resposta é bem-sucedida antes de tentar analisar o JSON
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro no servidor: ${response.status}. Detalhes: ${errorText}`);
     }
+
+    const data = await response.json()
+    console.log("Resposta do checkout:", data)
 
     if (data.success && data.checkoutUrl) {
       // Limpar dados do localStorage antes de redirecionar
@@ -433,9 +430,9 @@ const handleCheckout = async () => {
       // Redirecionar para a página de checkout do Stripe
       window.location.href = data.checkoutUrl
     } else {
-      setError(`Erro ao iniciar checkout: ${data.error}`)
+      setError(`Erro ao iniciar checkout: ${data.error || 'URL de checkout não encontrada'}`)
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Falha ao iniciar checkout:", error)
     setError(`Falha ao processar o pagamento: ${error.message || "Erro desconhecido"}. Tente novamente.`)
 

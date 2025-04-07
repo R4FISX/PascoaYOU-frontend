@@ -13,38 +13,63 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW
 })
 
 export async function POST(request: NextRequest) {
+  console.log("🔄 Iniciando processamento da requisição get-card")
+
   try {
     const body = await request.json()
+    console.log("📦 Payload recebido:", body)
+
     const { sessionId, cardId } = body
 
     // Validação básica
     if (!sessionId && !cardId) {
-      return NextResponse.json({ success: false, error: "ID da sessão ou do cartão é obrigatório" }, { status: 400 })
+      console.log("❌ Validação falhou: ID da sessão ou do cartão é obrigatório")
+      return NextResponse.json(
+        {
+          success: false,
+          error: "ID da sessão ou do cartão é obrigatório",
+        },
+        { status: 400 },
+      )
     }
 
     let card = null
+    let paymentStatus = null
 
     // Buscar pelo ID do cartão
     if (cardId) {
+      console.log("🔍 Buscando cartão pelo ID:", cardId)
       const { data, error } = await supabase.from("cards").select("*").eq("id", cardId).single()
 
       if (data && !error) {
         card = data
+        console.log("✅ Cartão encontrado pelo ID")
+      } else if (error) {
+        console.log("⚠️ Erro ao buscar cartão pelo ID:", error)
       }
     }
 
     // Se não encontrou pelo ID do cartão, buscar pelo ID da sessão
     if (!card && sessionId) {
+      console.log("🔍 Buscando cartão pelo ID da sessão:", sessionId)
       const { data, error } = await supabase.from("cards").select("*").eq("session_id", sessionId).single()
 
       if (data && !error) {
         card = data
-      } else {
+        console.log("✅ Cartão encontrado pelo ID da sessão")
+      } else if (error) {
+        console.log("⚠️ Erro ao buscar cartão pelo ID da sessão:", error)
+
         // Se ainda não encontrou, verificar a sessão do Stripe
         try {
+          console.log("🔍 Verificando sessão do Stripe:", sessionId)
           const session = await stripe.checkout.sessions.retrieve(sessionId)
+          paymentStatus = session.payment_status
+
+          console.log("✅ Sessão do Stripe encontrada, status:", paymentStatus)
 
           if (session.metadata?.cardId) {
+            console.log("🔍 Buscando cartão pelo ID nos metadados:", session.metadata.cardId)
             const { data: cardData, error: cardError } = await supabase
               .from("cards")
               .select("*")
@@ -53,20 +78,38 @@ export async function POST(request: NextRequest) {
 
             if (cardData && !cardError) {
               card = cardData
+              console.log("✅ Cartão encontrado pelos metadados da sessão")
+            } else if (cardError) {
+              console.log("⚠️ Erro ao buscar cartão pelos metadados:", cardError)
             }
           }
         } catch (stripeError) {
-          console.error("Erro ao buscar sessão do Stripe:", stripeError)
+          console.error("❌ Erro ao buscar sessão do Stripe:", stripeError)
         }
       }
     }
 
     if (!card) {
+      console.log("❌ Cartão não encontrado")
       return NextResponse.json({ success: false, error: "Cartão não encontrado" }, { status: 404 })
     }
 
-    // Atualizar o status do cartão para 'paid' se ainda estiver como 'pending'
-    if (card.status === "pending") {
+    // Verificar o status do pagamento no Stripe se temos o ID da sessão
+    if (sessionId && !paymentStatus) {
+      try {
+        console.log("🔍 Verificando status do pagamento no Stripe")
+        const session = await stripe.checkout.sessions.retrieve(sessionId)
+        paymentStatus = session.payment_status
+        console.log("✅ Status do pagamento:", paymentStatus)
+      } catch (stripeError) {
+        console.error("⚠️ Erro ao verificar status do pagamento:", stripeError)
+        // Não falhar a requisição por causa disso
+      }
+    }
+
+    // Atualizar o status do cartão para 'paid' se o pagamento foi confirmado
+    if ((paymentStatus === "paid" || sessionId) && card.status === "pending") {
+      console.log("🔄 Atualizando status do cartão para 'paid'")
       const { error: updateError } = await supabase
         .from("cards")
         .update({
@@ -76,10 +119,14 @@ export async function POST(request: NextRequest) {
         .eq("id", card.id)
 
       if (updateError) {
-        console.error("Erro ao atualizar status do cartão:", updateError)
+        console.error("⚠️ Erro ao atualizar status do cartão:", updateError)
+        // Não falhar a requisição por causa disso
+      } else {
+        console.log("✅ Status do cartão atualizado para 'paid'")
       }
     }
 
+    console.log("✅ Retornando dados do cartão")
     return NextResponse.json({
       success: true,
       cardUrl: card.card_url,
@@ -88,9 +135,10 @@ export async function POST(request: NextRequest) {
       templateId: card.template_id,
       fotoUrl: card.foto_url,
       imageState: card.image_state,
+      status: card.status,
     })
   } catch (error: any) {
-    console.error("Erro ao buscar cartão:", error)
+    console.error("❌ Erro ao buscar cartão:", error)
     return NextResponse.json(
       {
         success: false,
@@ -98,5 +146,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 },
     )
+  } finally {
+    console.log("🏁 Finalizando processamento da requisição get-card")
   }
 }

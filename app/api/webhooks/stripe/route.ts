@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 
 // Inicializa o Stripe com a chave secreta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot", {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-03-31.basil",
 })
 
 // Inicializa o cliente do Supabase
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Verificar a assinatura do webhook
-    event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET || "")
+    event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET || "whsec_26e9c89eaad3c54cc0a4278d1c1c772e35d347ab7fbfbfe03dfc9b062194f3c3")
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`)
     return NextResponse.json({ success: false, error: `Webhook Error: ${err.message}` }, { status: 400 })

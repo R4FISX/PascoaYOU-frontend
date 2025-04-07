@@ -2,12 +2,21 @@ import { type NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 
 // Inicializa o Stripe com a chave secreta
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot", {
-  apiVersion: "2023-10-16",
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2023-10-16", // Use uma versão estável e atual
 })
 
 export async function POST(request: NextRequest) {
   try {
+    // Verificar se a chave do Stripe está configurada
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error("STRIPE_SECRET_KEY não está configurada");
+      return NextResponse.json(
+        { success: false, error: "Configuração de pagamento incompleta" },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json()
     const { email, templateId, mensagem, nome, fotoUrl, imageState } = body
 
@@ -26,7 +35,8 @@ export async function POST(request: NextRequest) {
             product_data: {
               name: "Cartão de Páscoa Personalizado",
               description: "Acesso à criação de cartões de Páscoa personalizados",
-              images: ["https://example.com/easter-card-preview.jpg"], // Substitua por uma imagem real
+              // Remova a imagem se não tiver uma URL real
+              // ou substitua por uma URL válida do seu servidor
             },
             unit_amount: 499, // R$ 4,99 em centavos
           },
@@ -38,8 +48,8 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.DOMAIN || "http://localhost:3000"}/editor?canceled=true`,
       customer_email: email,
       metadata: {
-        templateId: templateId.toString(),
-        mensagem,
+        templateId: templateId?.toString() || "",
+        mensagem: mensagem || "",
         nome: nome || "",
         fotoUrl: fotoUrl || "",
         imageState: imageState ? JSON.stringify(imageState) : "",
@@ -51,8 +61,13 @@ export async function POST(request: NextRequest) {
       sessionId: session.id,
       checkoutUrl: session.url,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao criar sessão de checkout:", error)
-    return NextResponse.json({ success: false, error: "Falha ao processar pagamento" }, { status: 500 })
+    // Incluir mais detalhes sobre o erro para depuração
+    const errorMessage = error.message || "Falha ao processar pagamento";
+    return NextResponse.json({ 
+      success: false, 
+      error: errorMessage 
+    }, { status: 500 })
   }
 }
