@@ -2,9 +2,12 @@ import { type NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 // Inicializa o Stripe com a chave secreta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_51RALWZD5JvW9zM7PPkysHAwyEf1i2t5nErXDCGEajiaJI5e47SUhkUwIPzb0KyGQFiyeIW9G8GoJ622JeYsHiFq200EHOZtTot", {
-  apiVersion: "2025-03-31.basil",
+  apiVersion: "2023-10-16",
 })
 
 // Inicializa o cliente do Supabase
@@ -15,13 +18,13 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 // Webhook para receber eventos do Stripe
 export async function POST(request: NextRequest) {
   const payload = await request.text()
-  const sig = request.headers.get("stripe-signature") || "whsec_26e9c89eaad3c54cc0a4278d1c1c772e35d347ab7fbfbfe03dfc9b062194f3c3"
+  const sig = request.headers.get("stripe-signature") || ""
 
   let event
 
   try {
     // Verificar a assinatura do webhook
-    event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET || "whsec_26e9c89eaad3c54cc0a4278d1c1c772e35d347ab7fbfbfe03dfc9b062194f3c3")
+    event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET || "")
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`)
     return NextResponse.json({ success: false, error: `Webhook Error: ${err.message}` }, { status: 400 })
@@ -32,7 +35,27 @@ export async function POST(request: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session
 
     // Extrair metadados da sessão
-    const { templateId, mensagem, nome, fotoUrl } = session.metadata || {}
+    const { cardId, templateId, mensagem, nome, fotoUrl } = session.metadata || {}
+
+    // Atualizar o status do cartão para 'paid'
+    if (cardId) {
+      try {
+        const { error } = await supabase
+          .from("cards")
+          .update({
+            status: "paid",
+            session_id: session.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", cardId)
+
+        if (error) {
+          console.error("Erro ao atualizar status do cartão:", error)
+        }
+      } catch (error) {
+        console.error("Falha ao atualizar status do cartão:", error)
+      }
+    }
 
     // Registrar o pagamento no banco de dados
     try {
@@ -46,6 +69,7 @@ export async function POST(request: NextRequest) {
           mensagem,
           nome,
           foto_url: fotoUrl,
+          card_id: cardId,
         },
       ])
 

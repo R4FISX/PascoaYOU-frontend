@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -35,6 +35,14 @@ const CardPreview = dynamic(() => import("@/components/card-preview"), {
   ),
 })
 
+// Importar o componente CardGenerator dinamicamente
+const CardGenerator = dynamic(() => import("@/components/card-generator"), {
+  ssr: false,
+  loading: () => (
+    <div className="relative h-[400px] w-full max-w-[300px] mx-auto bg-gray-100 rounded-lg animate-pulse"></div>
+  ),
+})
+
 interface Template {
   id: number
   nome: string
@@ -60,6 +68,7 @@ export default function EditorPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const canceled = searchParams.get("canceled")
+  const cardGeneratorRef = useRef<HTMLDivElement>(null)
 
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,6 +85,7 @@ export default function EditorPage() {
   const [generating, setGenerating] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [generatedCard, setGeneratedCard] = useState<string | null>(null)
+  const [generatedCardDataUrl, setGeneratedCardDataUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("template")
   const [error, setError] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
@@ -293,161 +303,188 @@ export default function EditorPage() {
     }
   }
 
-// Função revisada para visualizar o preview do cartão
-const handlePreviewCard = async () => {
-  if (!selectedTemplate) {
-    setError("Por favor, selecione um template")
-    return
+  const handleCardGenerated = (dataUrl: string) => {
+    setGeneratedCardDataUrl(dataUrl)
   }
 
-  if (!mensagem.trim()) {
-    setError("Por favor, adicione uma mensagem")
-    return
-  }
-
-  try {
-    setPreviewing(true)
-    setError(null)
-
-    // Criando o ID do cartão temporário para o preview
-    const tempCardId = `preview_${Date.now()}`
-
-    // Preparar dados para a API de forma mais segura
-    const requestData = {
-      templateId: selectedTemplate,
-      mensagem: mensagem.trim(),
-      nome: nome.trim(),
-      fotoUrl: fotoUrl || null,
-      imageState: fotoUrl ? imageState : null,
-      isPreview: true,
-      cardId: tempCardId,  // Adicionando cardId que estava faltando
-      email: email.trim() || "preview@example.com" // Garantindo que sempre haja um email
+  const handlePreviewCard = async () => {
+    if (!selectedTemplate) {
+      setError("Por favor, selecione um template")
+      return
     }
 
-    console.log("Enviando dados para preview:", requestData)
-
-    // Enviar dados para a API de geração de cartão em modo preview
-    const response = await fetch("/api/generate-card", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestData),
-    })
-
-    // Capturando o texto da resposta para logging em caso de erro
-    const responseText = await response.text()
-    let data
+    if (!mensagem.trim()) {
+      setError("Por favor, adicione uma mensagem")
+      return
+    }
 
     try {
-      // Tentando analisar o texto da resposta como JSON
-      data = JSON.parse(responseText)
-    } catch (parseError) {
-      console.error("Falha ao analisar resposta:", responseText)
-      throw new Error(`Erro ao analisar resposta: ${parseError.message}. Resposta bruta: ${responseText}`)
-    }
+      setPreviewing(true)
+      setError(null)
 
-    if (data.success) {
-      setGeneratedCard(data.previewUrl)
-      setActiveTab("preview")
-    } else {
-      setError(`Erro ao gerar preview: ${data.error}`)
-    }
-  } catch (error: any) {
-    console.error("Falha na geração do preview:", error)
-    setError(`Falha ao gerar o preview do cartão: ${error.message || "Erro desconhecido"}. Tente novamente.`)
+      // Gerar a imagem do cartão usando o CardGenerator
+      if (cardGeneratorRef.current && cardGeneratorRef.current.generateImage) {
+        // @ts-ignore - Chamando a função exposta pelo CardGenerator
+        const imageDataUrl = await cardGeneratorRef.current.generateImage()
 
-    // Em ambiente de desenvolvimento, usar uma imagem de placeholder para o preview
-    if (process.env.NODE_ENV === "development") {
-      setGeneratedCard("/placeholder.svg?height=600&width=400&text=Preview+Simulado")
-      setActiveTab("preview")
+        if (imageDataUrl) {
+          setGeneratedCardDataUrl(imageDataUrl)
+          setActiveTab("preview")
+          setPreviewing(false)
+          return
+        }
+      }
+
+      // Fallback para a API se a geração local falhar
+      const response = await fetch("/api/generate-card", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          templateId: selectedTemplate,
+          mensagem,
+          nome,
+          fotoUrl,
+          imageState: fotoUrl ? imageState : null,
+          isPreview: true,
+        }),
+      })
+
+      // Verificar se a resposta é bem-sucedida antes de tentar analisar o JSON
+      if (!response.ok) {
+        throw new Error(`Erro no servidor: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        setGeneratedCard(data.previewUrl)
+        setActiveTab("preview")
+      } else {
+        setError(`Erro ao gerar preview: ${data.error}`)
+      }
+    } catch (error: any) {
+      console.error("Falha na geração do preview:", error)
+      setError(`Falha ao gerar o preview do cartão: ${error.message || "Erro desconhecido"}. Tente novamente.`)
+
+      // Em ambiente de desenvolvimento, usar uma imagem de placeholder para o preview
+      if (process.env.NODE_ENV === "development") {
+        setGeneratedCard("/placeholder.svg?height=600&width=400&text=Preview+Simulado")
+        setActiveTab("preview")
+      }
+    } finally {
+      setPreviewing(false)
     }
-  } finally {
-    setPreviewing(false)
   }
-}
 
-const handleCheckout = async () => {
-  if (!email.trim()) {
-    setError("Por favor, informe seu email para continuar")
-    return
-  }
-
-  if (!selectedTemplate) {
-    setError("Por favor, selecione um template")
-    return
-  }
-
-  if (!mensagem.trim()) {
-    setError("Por favor, adicione uma mensagem")
-    return
-  }
-
-  try {
-    setCheckoutLoading(true)
-    setError(null)
-
-    // Criar um ID único para o cartão
-    const cardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-
-    // Preparar dados de forma mais segura
-    const requestData = {
-      email: email.trim(),
-      templateId: selectedTemplate,
-      mensagem: mensagem.trim(),
-      nome: nome.trim() || "",
-      fotoUrl: fotoUrl || "",
-      imageState: fotoUrl ? imageState : null,
-      cardId: cardId,
-      createCheckoutSession: true  // Indicar explicitamente que queremos criar uma sessão de checkout
+  const handleCheckout = async () => {
+    if (!email.trim()) {
+      setError("Por favor, informe seu email para continuar")
+      return
     }
 
-    console.log("Enviando dados para checkout:", requestData)
-
-    // Criar sessão de checkout
-    const response = await fetch("/api/create-checkout", {  // Alterado para API específica de checkout
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestData),
-    })
-
-    // Verificar se a resposta é bem-sucedida antes de tentar analisar o JSON
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erro no servidor: ${response.status}. Detalhes: ${errorText}`);
+    if (!selectedTemplate) {
+      setError("Por favor, selecione um template")
+      return
     }
 
-    const data = await response.json()
-    console.log("Resposta do checkout:", data)
-
-    if (data.success && data.checkoutUrl) {
-      // Limpar dados do localStorage antes de redirecionar
-      localStorage.removeItem("editorFormData")
-      localStorage.removeItem("imageEditorState")
-
-      // Redirecionar para a página de checkout do Stripe
-      window.location.href = data.checkoutUrl
-    } else {
-      setError(`Erro ao iniciar checkout: ${data.error || 'URL de checkout não encontrada'}`)
+    if (!mensagem.trim()) {
+      setError("Por favor, adicione uma mensagem")
+      return
     }
-  } catch (error) {
-    console.error("Falha ao iniciar checkout:", error)
-    setError(`Falha ao processar o pagamento: ${error.message || "Erro desconhecido"}. Tente novamente.`)
 
-    // Em ambiente de desenvolvimento, redirecionar para a página de sucesso simulada
-    if (process.env.NODE_ENV === "development") {
-      // Limpar dados do localStorage antes de redirecionar
-      localStorage.removeItem("editorFormData")
-      localStorage.removeItem("imageEditorState")
+    try {
+      setCheckoutLoading(true)
+      setError(null)
 
-      router.push("/success?session_id=sim_" + Date.now())
+      // Garantir que temos a imagem do cartão gerada
+      if (!generatedCardDataUrl && cardGeneratorRef.current && cardGeneratorRef.current.generateImage) {
+        // @ts-ignore - Chamando a função exposta pelo CardGenerator
+        const imageDataUrl = await cardGeneratorRef.current.generateImage()
+        if (imageDataUrl) {
+          setGeneratedCardDataUrl(imageDataUrl)
+        }
+      }
+
+      // Salvar a imagem do cartão no servidor antes de iniciar o checkout
+      const saveResponse = await fetch("/api/save-card-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageDataUrl: generatedCardDataUrl,
+          templateId: selectedTemplate,
+          mensagem,
+          nome,
+          fotoUrl,
+          imageState: fotoUrl ? imageState : null,
+        }),
+      })
+
+      if (!saveResponse.ok) {
+        throw new Error(`Erro ao salvar imagem: ${saveResponse.status} ${saveResponse.statusText}`)
+      }
+
+      const saveData = await saveResponse.json()
+
+      if (!saveData.success) {
+        throw new Error(`Erro ao salvar imagem do cartão: ${saveData.error}`)
+      }
+
+      const cardId = saveData.cardId
+
+      // Criar sessão de checkout
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          templateId: selectedTemplate,
+          mensagem,
+          nome,
+          fotoUrl,
+          imageState: fotoUrl ? imageState : null,
+          cardId: cardId, // Passar o ID do cartão salvo
+        }),
+      })
+
+      // Verificar se a resposta é bem-sucedida antes de tentar analisar o JSON
+      if (!response.ok) {
+        throw new Error(`Erro no servidor: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.checkoutUrl) {
+        // Limpar dados do localStorage antes de redirecionar
+        localStorage.removeItem("editorFormData")
+        localStorage.removeItem("imageEditorState")
+
+        // Redirecionar para a página de checkout do Stripe
+        window.location.href = data.checkoutUrl
+      } else {
+        setError(`Erro ao iniciar checkout: ${data.error}`)
+      }
+    } catch (error: any) {
+      console.error("Falha ao iniciar checkout:", error)
+      setError(`Falha ao processar o pagamento: ${error.message || "Erro desconhecido"}. Tente novamente.`)
+
+      // Em ambiente de desenvolvimento, redirecionar para a página de sucesso simulada
+      if (process.env.NODE_ENV === "development") {
+        // Limpar dados do localStorage antes de redirecionar
+        localStorage.removeItem("editorFormData")
+        localStorage.removeItem("imageEditorState")
+
+        router.push("/success?session_id=sim_" + Date.now())
+      }
+    } finally {
+      setCheckoutLoading(false)
     }
-  } finally {
-    setCheckoutLoading(false)
   }
-}
 
   const handleImageChange = (newState: ImageState) => {
     setImageState(newState)
@@ -660,17 +697,43 @@ const handleCheckout = async () => {
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-xl font-semibold mb-4">Seu cartão está pronto!</h2>
 
-              {generatedCard ? (
+              {generatedCardDataUrl || generatedCard ? (
                 <div className="flex flex-col items-center">
-                  <CardPreview
-                    templateId={selectedTemplate || 1}
-                    templateUrl={selectedTemplateUrl}
-                    imageUrl={fotoUrl}
-                    mensagem={mensagem}
-                    nome={nome}
-                    imageState={imageState}
-                    className="mb-6"
-                  />
+                  {/* Componente oculto para gerar a imagem final */}
+                  <div className="hidden">
+                    <CardGenerator
+                      ref={cardGeneratorRef}
+                      templateId={selectedTemplate || 1}
+                      templateUrl={selectedTemplateUrl}
+                      imageUrl={fotoUrl}
+                      mensagem={mensagem}
+                      nome={nome}
+                      imageState={imageState}
+                      onGenerate={handleCardGenerated}
+                    />
+                  </div>
+
+                  {/* Exibir a imagem gerada */}
+                  {generatedCardDataUrl ? (
+                    <div className="relative h-[400px] w-full max-w-[300px] overflow-hidden rounded-lg shadow-lg mb-6">
+                      <Image
+                        src={generatedCardDataUrl || "/placeholder.svg"}
+                        alt="Cartão gerado"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <CardPreview
+                      templateId={selectedTemplate || 1}
+                      templateUrl={selectedTemplateUrl}
+                      imageUrl={fotoUrl}
+                      mensagem={mensagem}
+                      nome={nome}
+                      imageState={imageState}
+                      className="mb-6"
+                    />
+                  )}
 
                   <div className="space-y-4 w-full max-w-md">
                     <div className="bg-pink-50 p-4 rounded-lg mb-6">

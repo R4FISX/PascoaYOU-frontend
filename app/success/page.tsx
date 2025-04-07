@@ -9,8 +9,8 @@ import { Loader2, Check, Download, Share2 } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 
 // Inicializa o cliente do Supabase (client-side)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://uthophxqgveapbjvvzqd.supabase.co"
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0aG9waHhxZ3ZlYXBianZ2enFkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQxODE3OSwiZXhwIjoyMDU4OTk0MTc5fQ.266I-yb0IoT-NOob4ob1CtwaXNcxFwnRfifRBtUPzXE"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function SuccessPage() {
@@ -191,3 +191,4 @@ export default function SuccessPage() {
     </div>
   )
 }
+
